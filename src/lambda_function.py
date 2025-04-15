@@ -42,27 +42,32 @@ def lambda_handler(event, context):
     # create db connection
     connection = mysql.connector.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
 
-    # create db service object
-    db_service = DBService(connection)
+    try:
+        # create db service object
+        db_service = DBService(connection)
 
-    # 1. Extract user_id, refresh_token and spotify_data from event records
-    user_spotify_data = extract_user_spotify_data_from_event(event)
+        # 1. Extract user_id, refresh_token and spotify_data from event records
+        user_spotify_data = extract_user_spotify_data_from_event(event)
 
-    # 2. Update user's spotify refresh_token in DB
-    if user_spotify_data.refresh_token is not None:
-        db_service.update_refresh_token(
-            user_id=user_spotify_data.user_id,
-            refresh_token=user_spotify_data.refresh_token
-        )
+        # 2. Update user's spotify refresh_token in DB
+        if user_spotify_data.refresh_token is not None:
+            db_service.update_refresh_token(
+                user_id=user_spotify_data.user_id,
+                refresh_token=user_spotify_data.refresh_token
+            )
 
-    # 3. Add user's spotify top items to DB
-    collected_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        # 3. Add user's spotify top items to DB
+        collected_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    for top_items_data in user_spotify_data.all_top_items_data:
-        db_service.store_top_items(
-            user_id=user_spotify_data.user_id,
-            top_items=top_items_data.top_items,
-            item_type=top_items_data.item_type,
-            time_range=top_items_data.time_range,
-            collected_date=collected_date
-        )
+        for top_items_data in user_spotify_data.all_top_items_data:
+            db_service.store_top_items(
+                user_id=user_spotify_data.user_id,
+                top_items=top_items_data.top_items,
+                item_type=top_items_data.item_type,
+                time_range=top_items_data.time_range,
+                collected_date=collected_date
+            )
+    except Exception as e:
+        print(f"Something went wrong - {e}")
+    finally:
+        connection.close()
