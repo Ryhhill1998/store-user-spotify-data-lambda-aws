@@ -17,3 +17,17 @@ class TimeRange(Enum):
 class TopItem:
     id: str
     position: int
+
+
+@dataclass
+class TopItemsData:
+    top_items: list[TopItem]
+    item_type: ItemType
+    time_range: TimeRange
+
+
+@dataclass
+class UserSpotifyData:
+    user_id: str
+    refresh_token: str | None
+    all_top_items_data: list[TopItemsData]
