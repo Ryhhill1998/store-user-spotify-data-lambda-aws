@@ -5,13 +5,18 @@ from datetime import datetime, timezone
 import mysql.connector
 
 from src.db_service import DBService
-from src.models import TopItemsData, UserSpotifyData, TopItem, ItemType, TimeRange
+from src.models import TopItemsData, UserSpotifyData, TopItem, ItemType, TimeRange, Settings
 
-# Extract environment variables
-DB_HOST = os.environ["DB_HOST"]
-DB_NAME = os.environ["DB_NAME"]
-DB_USER = os.environ["DB_USER"]
-DB_PASS = os.environ["DB_PASS"]
+
+def get_settings() -> Settings:
+    db_host = os.environ["DB_HOST"]
+    db_name = os.environ["DB_NAME"]
+    db_user = os.environ["DB_USER"]
+    db_pass = os.environ["DB_PASS"]
+
+    settings = Settings(db_host=db_host, db_name=db_name, db_user=db_user, db_pass=db_pass)
+
+    return settings
 
 
 def extract_user_spotify_data_from_event(event: dict) -> UserSpotifyData:
@@ -39,15 +44,20 @@ def extract_user_spotify_data_from_event(event: dict) -> UserSpotifyData:
 
 
 def lambda_handler(event, context):
-    # create db connection
-    connection = mysql.connector.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+    settings = get_settings()
 
-    try:
+    # 1. Extract user_id, refresh_token and spotify_data from event records
+    user_spotify_data = extract_user_spotify_data_from_event(event)
+
+    # create db connection
+    with mysql.connector.connect(
+        host=settings.db_host,
+        database=settings.db_name,
+        user=settings.db_user,
+        password=settings.db_pass
+    ) as connection:
         # create db service object
         db_service = DBService(connection)
-
-        # 1. Extract user_id, refresh_token and spotify_data from event records
-        user_spotify_data = extract_user_spotify_data_from_event(event)
 
         # 2. Update user's spotify refresh_token in DB
         if user_spotify_data.refresh_token is not None:
@@ -67,7 +77,3 @@ def lambda_handler(event, context):
                 time_range=top_items_data.time_range,
                 collected_date=collected_date
             )
-    except Exception as e:
-        print(f"Something went wrong - {e}")
-    finally:
-        connection.close()
