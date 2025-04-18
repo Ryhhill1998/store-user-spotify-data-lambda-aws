@@ -1,6 +1,13 @@
+from enum import Enum
+
 from mysql.connector.pooling import PooledMySQLConnection
 
-from src.models import TopItem, TimeRange, ItemType
+from src.models import TopItem, TimeRange
+
+
+class ItemType(str, Enum):
+    ARTIST = "artist"
+    TRACK = "track"
 
 
 class DBService:
@@ -17,7 +24,37 @@ class DBService:
             cursor.execute(update_statement, (user_id, refresh_token))
             self.connection.commit()
 
-    def store_top_items(
+    def store_top_artists(
+            self,
+            user_id: str,
+            top_artists: list[TopItem],
+            time_range: TimeRange,
+            collected_date: str
+    ):
+        self._store_top_items(
+            user_id=user_id,
+            top_items=top_artists,
+            item_type=ItemType.ARTIST,
+            time_range=time_range,
+            collected_date=collected_date
+        )
+
+    def store_top_tracks(
+            self,
+            user_id: str,
+            top_tracks: list[TopItem],
+            time_range: TimeRange,
+            collected_date: str
+    ):
+        self._store_top_items(
+            user_id=user_id,
+            top_items=top_tracks,
+            item_type=ItemType.TRACK,
+            time_range=time_range,
+            collected_date=collected_date
+        )
+
+    def _store_top_items(
             self,
             user_id: str,
             top_items: list[TopItem],

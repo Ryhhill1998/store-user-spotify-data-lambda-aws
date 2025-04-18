@@ -2,12 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-class ItemType(Enum):
-    ARTIST = "artist"
-    TRACK = "track"
-
-
-class TimeRange(Enum):
+class TimeRange(str, Enum):
     SHORT = "short_term"
     MEDIUM = "medium_term"
     LONG = "long_term"
@@ -30,7 +25,6 @@ class TopItem:
 @dataclass
 class TopItemsData:
     top_items: list[TopItem]
-    item_type: ItemType
     time_range: TimeRange
 
 
@@ -38,4 +32,5 @@ class TopItemsData:
 class UserSpotifyData:
     user_id: str
     refresh_token: str | None
-    all_top_items_data: list[TopItemsData]
+    top_artists_data: list[TopItemsData]
+    top_tracks_data: list[TopItemsData]

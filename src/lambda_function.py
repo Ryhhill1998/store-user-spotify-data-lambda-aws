@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import mysql.connector
 
 from src.db_service import DBService
-from src.models import TopItemsData, UserSpotifyData, TopItem, ItemType, TimeRange, Settings
+from src.models import TopItemsData, UserSpotifyData, TopItem, TimeRange, Settings
 
 
 def get_settings() -> Settings:
@@ -23,22 +23,23 @@ def extract_user_spotify_data_from_event(event: dict) -> UserSpotifyData:
     record = event["Records"][0]
     data = json.loads(record["body"])
 
-    user_id = data["id"]
+    user_id = data["user_id"]
     refresh_token = data["refresh_token"]
 
-    all_top_items_data = []
+    def parse_top_items_data(top_items_data_raw: dict) -> TopItemsData:
+        top_items = [TopItem(id=item["id"], position=item["position"]) for item in top_items_data_raw["top_items"]]
+        time_range = TimeRange(top_items_data_raw["time_range"])
+        top_items_data = TopItemsData(top_items=top_items, time_range=time_range)
+        return top_items_data
 
-    for entry in data["all_top_items_data"]:
-        top_items = [TopItem(id=item["id"], position=item["position"]) for item in entry["top_items"]]
-        item_type = ItemType(entry["item_type"])
-        time_range = TimeRange(entry["time_range"])
-        top_items_data = TopItemsData(top_items=top_items, item_type=item_type, time_range=time_range)
-        all_top_items_data.append(top_items_data)
+    top_artists_data = list(map(parse_top_items_data, data["top_artists_data"]))
+    top_tracks_data = list(map(parse_top_items_data, data["top_tracks_data"]))
 
     user_spotify_data = UserSpotifyData(
         user_id=user_id,
         refresh_token=refresh_token,
-        all_top_items_data=all_top_items_data
+        top_artists_data=top_artists_data,
+        top_tracks_data=top_tracks_data
     )
     return user_spotify_data
 
@@ -69,11 +70,20 @@ def lambda_handler(event, context):
         # 3. Add user's spotify top items to DB
         collected_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-        for top_items_data in user_spotify_data.all_top_items_data:
-            db_service.store_top_items(
+        # 3a. Add top artists
+        for entry in user_spotify_data.top_artists_data:
+            db_service.store_top_artists(
                 user_id=user_spotify_data.user_id,
-                top_items=top_items_data.top_items,
-                item_type=top_items_data.item_type,
-                time_range=top_items_data.time_range,
+                top_artists=entry.top_items,
+                time_range=entry.time_range,
+                collected_date=collected_date
+            )
+
+        # 3a. Add top tracks
+        for entry in user_spotify_data.top_tracks_data:
+            db_service.store_top_tracks(
+                user_id=user_spotify_data.user_id,
+                top_tracks=entry.top_items,
+                time_range=entry.time_range,
                 collected_date=collected_date
             )
