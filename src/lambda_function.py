@@ -3,6 +3,7 @@ import os
 from datetime import datetime, timezone
 
 import mysql.connector
+from loguru import logger
 
 from src.db_service import DBService
 from src.models import TopItemsData, UserSpotifyData, TopItem, TimeRange, Settings
@@ -51,12 +52,14 @@ def lambda_handler(event, context):
     user_spotify_data = extract_user_spotify_data_from_event(event)
 
     # create db connection
-    with mysql.connector.connect(
+    connection = mysql.connector.connect(
         host=settings.db_host,
         database=settings.db_name,
         user=settings.db_user,
         password=settings.db_pass
-    ) as connection:
+    )
+
+    try:
         # create db service object
         db_service = DBService(connection)
 
@@ -87,3 +90,9 @@ def lambda_handler(event, context):
                 time_range=entry.time_range,
                 collected_date=collected_date
             )
+    except Exception as e:
+        error_message = "Something went wrong"
+        logger.error(f"{error_message} - {e}")
+        raise
+    finally:
+        connection.close()

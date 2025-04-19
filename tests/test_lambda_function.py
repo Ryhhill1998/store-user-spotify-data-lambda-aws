@@ -46,52 +46,25 @@ def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data
         "top_artists_data": [
             {
                 "top_items": [
-                    {
-                        "id": "1",
-                        "position": 1
-                    },
-                    {
-                        "id": "2",
-                        "position": 2
-                    },
-                    {
-                        "id": "3",
-                        "position": 3
-                    }
+                    {"id": "1", "position": 1},
+                    {"id": "2", "position": 2},
+                    {"id": "3", "position": 3}
                 ],
                 "time_range": "short_term"
             },
             {
                 "top_items": [
-                    {
-                        "id": "1",
-                        "position": 1
-                    },
-                    {
-                        "id": "2",
-                        "position": 2
-                    },
-                    {
-                        "id": "3",
-                        "position": 3
-                    }
+                    {"id": "1", "position": 1},
+                    {"id": "2", "position": 2},
+                    {"id": "3", "position": 3}
                 ],
                 "time_range": "medium_term"
             },
             {
                 "top_items": [
-                    {
-                        "id": "1",
-                        "position": 1
-                    },
-                    {
-                        "id": "2",
-                        "position": 2
-                    },
-                    {
-                        "id": "3",
-                        "position": 3
-                    }
+                    {"id": "1", "position": 1},
+                    {"id": "2", "position": 2},
+                    {"id": "3", "position": 3}
                 ],
                 "time_range": "long_term"
             }
@@ -99,52 +72,25 @@ def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data
         "top_tracks_data": [
             {
                 "top_items": [
-                    {
-                        "id": "1",
-                        "position": 1
-                    },
-                    {
-                        "id": "2",
-                        "position": 2
-                    },
-                    {
-                        "id": "3",
-                        "position": 3
-                    }
+                    {"id": "1", "position": 1},
+                    {"id": "2", "position": 2},
+                    {"id": "3", "position": 3}
                 ],
                 "time_range": "short_term"
             },
             {
                 "top_items": [
-                    {
-                        "id": "1",
-                        "position": 1
-                    },
-                    {
-                        "id": "2",
-                        "position": 2
-                    },
-                    {
-                        "id": "3",
-                        "position": 3
-                    }
+                    {"id": "1", "position": 1},
+                    {"id": "2", "position": 2},
+                    {"id": "3", "position": 3}
                 ],
                 "time_range": "medium_term"
             },
             {
                 "top_items": [
-                    {
-                        "id": "1",
-                        "position": 1
-                    },
-                    {
-                        "id": "2",
-                        "position": 2
-                    },
-                    {
-                        "id": "3",
-                        "position": 3
-                    }
+                    {"id": "1", "position": 1},
+                    {"id": "2", "position": 2},
+                    {"id": "3", "position": 3}
                 ],
                 "time_range": "long_term"
             }
@@ -211,7 +157,3 @@ def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data
         ]
     )
     assert user_spotify_data == expected_user_spotify_data
-
-
-def test_lambda_handler():
-    pass

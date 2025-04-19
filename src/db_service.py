@@ -1,6 +1,7 @@
 from enum import Enum
 
-from mysql.connector.pooling import PooledMySQLConnection
+import mysql.connector
+from loguru import logger
 
 from src.models import TopItem, TimeRange
 
@@ -10,19 +11,33 @@ class ItemType(str, Enum):
     TRACK = "track"
 
 
+class DBServiceException(Exception):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
 class DBService:
-    def __init__(self, connection: PooledMySQLConnection):
+    def __init__(self, connection: mysql.connector.pooling.PooledMySQLConnection):
         self.connection = connection
 
     def update_refresh_token(self, user_id: str, refresh_token: str):
-        with self.connection.cursor() as cursor:
-            update_statement = """
-                UPDATE spotify_user
-                SET refresh_token = (%s)
-                WHERE user_id = (%s);
-            """
+        cursor = self.connection.cursor()
+
+        try:
+            update_statement = (
+                "UPDATE spotify_user "
+                "SET refresh_token = (%s) "
+                "WHERE user_id = (%s);"
+            )
             cursor.execute(update_statement, (user_id, refresh_token))
             self.connection.commit()
+        except mysql.connector.Error as e:
+            self.connection.rollback()
+            error_message = "Failed to update user's refresh token"
+            logger.error(f"{error_message} - {e}")
+            raise DBServiceException(error_message)
+        finally:
+            cursor.close()
 
     def store_top_artists(
             self,
@@ -75,6 +90,15 @@ class DBService:
 
         values = [(user_id, item.id, collected_date, item.position, time_range) for item in top_items]
 
-        with self.connection.cursor() as cursor:
+        cursor = self.connection.cursor()
+
+        try:
             cursor.executemany(insert_statement, values)
             self.connection.commit()
+        except mysql.connector.Error as e:
+            self.connection.rollback()
+            error_message = "Failed to store top items"
+            logger.error(f"{error_message} - {e}")
+            raise DBServiceException(error_message)
+        finally:
+            cursor.close()
