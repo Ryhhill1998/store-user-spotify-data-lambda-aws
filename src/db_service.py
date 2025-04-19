@@ -77,16 +77,15 @@ class DBService:
             time_range: TimeRange,
             collected_date: str
     ):
-        insert_statement = f"""
-            INSERT INTO top_{item_type} (
-                spotify_user_id, 
-                {item_type}_id, 
-                collected_date, 
-                position, 
-                time_range
-            )
-            VALUES (%s, %s, %s, %s, %s);
-        """
+        insert_statement = (
+            f"INSERT INTO top_{item_type.value} ("
+                "spotify_user_id, "
+                f"{item_type.value}_id, "
+                "collected_date, "
+                "position, "
+                "time_range"
+            ") VALUES (%s, %s, %s, %s, %s);"
+        )
 
         values = [(user_id, item.id, collected_date, item.position, time_range) for item in top_items]
 
