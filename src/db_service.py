@@ -87,7 +87,7 @@ class DBService:
             ") VALUES (%s, %s, %s, %s, %s);"
         )
 
-        values = [(user_id, item.id, collected_date, item.position, time_range) for item in top_items]
+        values = [(user_id, item.id, collected_date, item.position, time_range.value) for item in top_items]
 
         cursor = self.connection.cursor()
 

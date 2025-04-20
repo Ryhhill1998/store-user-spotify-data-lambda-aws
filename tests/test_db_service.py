@@ -161,9 +161,9 @@ def test__store_top_items_calls_expected_mysql_methods_with_expected_params(
     mock_cursor.executemany.assert_called_once_with(
         insert_statement,
         [
-            (user_id, "1", collected_date, 1, time_range.SHORT),
-            (user_id, "2", collected_date, 2, time_range.SHORT),
-            (user_id, "3", collected_date, 3, time_range.SHORT)
+            (user_id, "1", collected_date, 1, "short_term"),
+            (user_id, "2", collected_date, 2, "short_term"),
+            (user_id, "3", collected_date, 3, "short_term")
         ]
     )
     mock_db_connection.commit.assert_called_once()
