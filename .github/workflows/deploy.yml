@@ -27,7 +27,7 @@ jobs:
 
       # Step 4: Copy Lambda function code into the package folder
       - name: Add Lambda function code
-        run: cp src/* ./package/  # Copy lambda_function.py from the 'src' folder to the package folder
+        run: cp -r src ./package/
 
       # Step 5: Zip the contents of the package folder
       - name: Create Zip file for Lambda function
