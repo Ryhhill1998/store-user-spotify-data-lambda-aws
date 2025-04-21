@@ -27,7 +27,7 @@ class DBService:
             update_statement = (
                 "UPDATE spotify_user "
                 "SET refresh_token = (%s) "
-                "WHERE user_id = (%s);"
+                "WHERE id = (%s);"
             )
             cursor.execute(update_statement, (user_id, refresh_token))
             self.connection.commit()
