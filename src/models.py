@@ -20,6 +20,8 @@ class Settings:
 class TopItem:
     id: str
     position: int
+    position_change: int | None = None
+    is_new: bool = False
 
 
 @dataclass

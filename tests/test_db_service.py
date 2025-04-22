@@ -45,7 +45,7 @@ def test_update_refresh_token_calls_expected_mysql_methods_with_expected_params(
         mock_db_connection,
         mock_cursor
 ):
-    update_statement = "UPDATE spotify_user SET refresh_token = (%s) WHERE user_id = (%s);"
+    update_statement = "UPDATE spotify_user SET refresh_token = %s WHERE id = %s;"
 
     db_service.update_refresh_token(user_id="123", refresh_token="abc")
 
@@ -148,7 +148,7 @@ def test__store_top_items_calls_expected_mysql_methods_with_expected_params(
     top_items = [TopItem(id="1", position=1), TopItem(id="2", position=2), TopItem(id="3", position=3)]
     time_range = TimeRange.SHORT
     collected_date = "2024-01-01"
-    insert_statement = "INSERT INTO top_track (spotify_user_id, track_id, collected_date, position, time_range) VALUES (%s, %s, %s, %s, %s);"
+    insert_statement = "INSERT INTO top_track (spotify_user_id, track_id, collected_date, position, position_change, position_status, time_range) VALUES (%s, %s, %s, %s, %s);"
 
     db_service._store_top_items(
         user_id=user_id,

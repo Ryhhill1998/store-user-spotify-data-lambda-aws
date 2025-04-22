@@ -71,7 +71,7 @@ def lambda_handler(event, context):
             )
 
         # 3. Add user's spotify top items to DB
-        collected_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        collected_date = datetime.now(timezone.utc)
 
         # 3a. Add top artists
         for entry in user_spotify_data.top_artists_data:
