@@ -83,7 +83,7 @@ class DBService:
                 "position_change, "
                 "is_new, "
                 "time_range"
-            ") VALUES (%s, %s, %s, %s, %s);"
+            ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
         )
 
         values = [
@@ -98,8 +98,6 @@ class DBService:
             )
             for item in top_items
         ]
-
-        logger.debug(f"{values = }")
 
         cursor = self.connection.cursor()
 
