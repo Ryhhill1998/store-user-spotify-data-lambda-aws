@@ -99,6 +99,8 @@ class DBService:
             for item in top_items
         ]
 
+        logger.debug(f"{values = }")
+
         cursor = self.connection.cursor()
 
         try:
