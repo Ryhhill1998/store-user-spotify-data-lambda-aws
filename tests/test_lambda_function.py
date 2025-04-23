@@ -43,6 +43,7 @@ def mock_settings(monkeypatch):
         yield
 
 
+# 1. Test get_settings raises KeyError if any environment variables are missing.
 @pytest.mark.parametrize("env_var_to_delete", ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASS"])
 def test_get_settings_raises_key_error_if_any_env_var_missing(mock_settings, monkeypatch, env_var_to_delete):
     monkeypatch.delenv(env_var_to_delete)
@@ -51,6 +52,7 @@ def test_get_settings_raises_key_error_if_any_env_var_missing(mock_settings, mon
         get_settings()
 
 
+# 2. Test get_settings returns expected settings.
 def test_get_settings_returns_expected_settings(mock_settings):
     expected_settings = Settings(
         db_host="DB_HOST",
@@ -64,6 +66,7 @@ def test_get_settings_returns_expected_settings(mock_settings):
     assert settings == expected_settings
 
 
+# 9. Test extract_user_spotify_data_from_event returns expected user_spotify_data.
 def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data():
     user_id = str(uuid.uuid4())
     refresh_token = str(uuid.uuid4())
@@ -217,6 +220,7 @@ def mock_db_service(mocker) -> Mock:
     return mock_db
 
 
+# 11. Test lambda_handler raises logs expected message if Exception occurs.
 def test_lambda_handler_logs_expected_message_if_exception_occurs(
         mocker,
         mock_settings,
@@ -240,7 +244,26 @@ def test_lambda_handler_logs_expected_message_if_exception_occurs(
     assert "Something went wrong" in logs_output
 
 
-def test_lambda_handler_closes_db_connection(
+def test_lambda_handler_closes_db_connection_if_exception_occurs(
+        mocker,
+        mock_settings,
+        mock_user_spotify_data_factory,
+        mock_connection,
+        mock_db_service
+):
+    mocker.patch(
+        "src.lambda_function.extract_user_spotify_data_from_event",
+        return_value=mock_user_spotify_data_factory()
+    )
+    mocker.patch("src.lambda_function.DBService", side_effect=Exception)
+
+    with pytest.raises(Exception):
+        lambda_handler("", "")
+
+    mock_connection.close.assert_called_once()
+
+
+def test_lambda_handler_closes_db_connection_if_successful_run(
         mocker,
         mock_settings,
         mock_user_spotify_data_factory,
