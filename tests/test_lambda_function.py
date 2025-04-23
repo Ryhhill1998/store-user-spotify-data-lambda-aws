@@ -11,6 +11,22 @@ from loguru import logger
 from src.lambda_function import get_settings, extract_user_spotify_data_from_event, lambda_handler
 from src.models import Settings, UserSpotifyData, TopItemsData, TopItem, TimeRange
 
+# 1. Test get_settings raises KeyError if any environment variables are missing.
+# 2. Test get_settings returns expected settings.
+# 3. Test extract_user_spotify_data_from_event raises KeyError if Records missing from event.
+# 4. Test extract_user_spotify_data_from_event raises KeyError if body missing from record.
+# 5. Test extract_user_spotify_data_from_event raises KeyError if user_id, refresh_token, top_artists_data or top_tracks_data missing from body.
+# 6. Test extract_user_spotify_data_from_event raises KeyError if id or position missing from top_artists_data or top_tracks_data.
+# 7. Test extract_user_spotify_data_from_event raises KeyError if top_items or time_range missing from top_artists_data or top_tracks_data.
+# 8. Test extract_user_spotify_data_from_event raises KeyError if id or position missing from top_items.
+# 9. Test extract_user_spotify_data_from_event returns expected user_spotify_data.
+# 10. Test lambda_handler creates mysql connection with expected params.
+# 11. Test lambda_handler raises logs expected message if Exception occurs.
+# 12. Test lambda_handler updates refresh token if it is present in user_spotify_data.
+# 13. Test lambda_handler does not update refresh token if it is not present in user_spotify_data.
+# 14. Test lambda_handler calls store_top_artists and store_top_tracks of db_service expected number of times and with expected params.
+# 15. Test lambda_handler closes connection to db even if Exception occurs.
+
 
 @pytest.fixture
 def mock_settings(monkeypatch):
@@ -27,7 +43,15 @@ def mock_settings(monkeypatch):
         yield
 
 
-def test_get_settings(mock_settings):
+@pytest.mark.parametrize("env_var_to_delete", ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASS"])
+def test_get_settings_raises_key_error_if_any_env_var_missing(mock_settings, monkeypatch, env_var_to_delete):
+    monkeypatch.delenv(env_var_to_delete)
+
+    with pytest.raises(KeyError):
+        get_settings()
+
+
+def test_get_settings_returns_expected_settings(mock_settings):
     expected_settings = Settings(
         db_host="DB_HOST",
         db_name="DB_NAME",
