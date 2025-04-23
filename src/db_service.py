@@ -1,7 +1,9 @@
+from dataclasses import asdict
 from datetime import timedelta, datetime
 from enum import Enum
 
 import mysql.connector
+import numpy as np
 from loguru import logger
 import pandas as pd
 
@@ -47,9 +49,10 @@ class DBService:
             item_type: ItemType,
             time_range: TimeRange,
             collected_date: str
-    ) -> list[dict]:
+    ) -> list[TopItem]:
+        cursor = self.connection.cursor(dictionary=True)
+
         try:
-            cursor = self.connection.cursor(dictionary=True)
             select_statement = (
                 f"SELECT * FROM top_{item_type.value} "
                 "WHERE spotify_user_id = %s "
@@ -59,12 +62,14 @@ class DBService:
             )
             cursor.execute(select_statement, (user_id, time_range.value, collected_date))
             results = cursor.fetchall()
-            cursor.close()
-            return results
+            top_items = [TopItem(**entry) for entry in results]
+            return top_items
         except mysql.connector.Error as e:
             error_message = f"Failed to get top artists. User ID: {user_id}, time range: {time_range.value}"
             logger.error(f"{error_message} - {e}")
             raise DBServiceException(error_message)
+        finally:
+            cursor.close()
 
     def _store_top_items(
             self,
@@ -112,13 +117,30 @@ class DBService:
         finally:
             cursor.close()
 
+    @staticmethod
+    def _calculate_position_changes(items_current: list[TopItem], items_prev: list[TopItem]):
+        latest_df = pd.DataFrame([asdict(item) for item in items_current])
+        prev_df = pd.DataFrame([asdict(item) for item in items_prev])
+        merged_df = pd.merge(
+            latest_df,
+            prev_df[["id", "position"]],
+            on=["id"],
+            how="left",
+            suffixes=("", "_prev")
+        )
+        merged_df["position_change"] = merged_df["position_prev"] - merged_df["position"]
+        merged_df["is_new"] = pd.isna(merged_df["position_change"])
+        records = merged_df[["id", "position", "position_change", "is_new"]].replace({np.nan: None}).to_dict("records")
+        items_with_position_changes = [TopItem(**record) for record in records]
+        return items_with_position_changes
+
     def _store_top_items_with_position_changes(
             self,
             user_id: str,
             top_items: list[TopItem],
             item_type: ItemType,
-            collected_date: datetime,
-            time_range: TimeRange
+            time_range: TimeRange,
+            collected_date: datetime
     ):
         prev_date = (collected_date - timedelta(days=1)).strftime("%Y-%m-%d")
         top_items_prev = self._get_top_items(
@@ -129,34 +151,17 @@ class DBService:
         )
 
         if top_items_prev:
-            latest_df = pd.DataFrame(top_items)
-            prev_df = pd.DataFrame(top_items_prev)
-            merged_df = pd.merge(
-                latest_df,
-                prev_df[["track_id", "position"]],
-                on=["track_id"],
-                how="left",
-                suffixes=("", "_prev")
-            )
-            merged_df["position_change"] = merged_df["position_prev"] - merged_df["position"]
-            merged_df["is_new"] = pd.isna(merged_df["position_change"])
-            records = merged_df[["track_id", "position", "position_change", "is_new"]].to_dict("records")
-            top_tracks_with_position_changes = [TopItem(**record) for record in records]
-            self._store_top_items(
-                user_id=user_id,
-                top_items=top_tracks_with_position_changes,
-                item_type=item_type,
-                time_range=time_range,
-                collected_date=collected_date.strftime("%Y-%m-%d")
-            )
+            top_items_to_store = self._calculate_position_changes(items_current=top_items, items_prev=top_items_prev)
         else:
-            self._store_top_items(
-                user_id=user_id,
-                top_items=top_items,
-                item_type=item_type,
-                time_range=time_range,
-                collected_date=collected_date.strftime("%Y-%m-%d")
-            )
+            top_items_to_store = top_items
+
+        self._store_top_items(
+            user_id=user_id,
+            top_items=top_items_to_store,
+            item_type=item_type,
+            time_range=time_range,
+            collected_date=collected_date.strftime("%Y-%m-%d")
+        )
 
     def store_top_artists(
             self,
