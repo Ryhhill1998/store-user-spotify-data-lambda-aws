@@ -16,9 +16,10 @@ from src.models import TopItem, TimeRange
 # 6. Test _store_top_items raises DBServiceException, closes cursor and rolls back if mysql.connector.Error occurs.
 # 7. Test _store_top_items calls executemany with expected params and closes cursor.
 # 8. Test _calculate_position_changes returns expected top items.
-# 9. Test _store_top_items_with_position_changes calls _store_top_items with expected params.
-# 10. Test store_top_artists calls _store_top_items_with_position_changes with expected params.
+# 9. Test _store_top_items_with_position_changes calls _calculate_position_changes if top items prev exists.
+# 10. Test _store_top_items_with_position_changes does not call _calculate_position_changes if top items prev does not exist.
 # 11. Test store_top_tracks calls _store_top_items_with_position_changes with expected params.
+# 12. Test store_top_tracks calls _store_top_items_with_position_changes with expected params.
 
 
 @pytest.fixture
@@ -60,28 +61,73 @@ def test_update_refresh_token_calls_expected_mysql_methods_with_expected_params(
         mock_db_connection,
         mock_cursor
 ):
-    update_statement = "UPDATE spotify_user SET refresh_token = %s WHERE id = %s;"
-
     db_service.update_refresh_token(user_id="123", refresh_token="abc")
 
+    update_statement = "UPDATE spotify_user SET refresh_token = %s WHERE id = %s;"
     mock_cursor.execute.assert_called_once_with(update_statement, ("123", "abc"))
     mock_db_connection.commit.assert_called_once()
     mock_cursor.close.assert_called_once()
 
 
 # 3. Test _get_top_items raises DBServiceException, closes cursor and rolls back if mysql.connector.Error occurs.
-def test_get_top_items_raises_db_service_exception_if_mysql_error_occurs():
-    pass
+def test__get_top_items_raises_db_service_exception_if_mysql_error_occurs(
+        db_service,
+        mock_db_connection,
+        mock_cursor
+):
+    mock_cursor.execute.side_effect = mysql.connector.Error
+
+    with pytest.raises(DBServiceException) as e:
+        db_service._get_top_items(
+            user_id="1",
+            item_type=ItemType.TRACK,
+            time_range=TimeRange.SHORT,
+            collected_date=""
+        )
+
+    assert "Failed to get top artists. User ID: 1, time range: short_term" in str(e.value)
 
 
 # 4. Test _get_top_items returns calls execute with expected params and closes cursor.
-def test_get_top_items_calls_expected_mysql_methods_with_expected_params():
-    pass
+def test__get_top_items_calls_expected_mysql_methods_with_expected_params(
+        db_service,
+        mock_db_connection,
+        mock_cursor
+):
+    mock_cursor.fetchall.return_value = []
+    user_id = str(uuid.uuid4())
+    collected_date = "2024-01-01"
+
+    db_service._get_top_items(
+        user_id=user_id,
+        item_type=ItemType.TRACK,
+        time_range=TimeRange.SHORT,
+        collected_date=collected_date
+    )
+
+    select_statement = "SELECT * FROM top_track WHERE spotify_user_id = %s AND time_range = %s AND collected_date = %s ORDER BY position ASC;"
+    mock_cursor.execute.assert_called_once_with(select_statement, (user_id, "short_term", collected_date))
+    mock_cursor.close.assert_called_once()
 
 
 # 5. Test _get_top_items returns expected top items.
-def test_get_top_items_returns_expected_top_items():
-    pass
+def test__get_top_items_returns_expected_top_items(
+        db_service,
+        mock_db_connection,
+        mock_cursor
+):
+    mock_fetchall_results = [{"id": "1", "position": 1}, {"id": "2", "position": 2}, {"id": "3", "position": 3}]
+    mock_cursor.fetchall.return_value = mock_fetchall_results
+
+    top_items = db_service._get_top_items(
+        user_id=str(uuid.uuid4()),
+        item_type=ItemType.TRACK,
+        time_range=TimeRange.SHORT,
+        collected_date="2024-01-01"
+    )
+
+    expected_top_items = [TopItem(id="1", position=1), TopItem(id="2", position=2), TopItem(id="3", position=3)]
+    assert top_items == expected_top_items
 
 
 # 6. Test _store_top_items raises DBServiceException, closes cursor and rolls back if mysql.connector.Error occurs.
@@ -121,7 +167,6 @@ def test__store_top_items_calls_expected_mysql_methods_with_expected_params(
 ):
     user_id = str(uuid.uuid4())
     top_items = [TopItem(id="1", position=1), TopItem(id="2", position=2), TopItem(id="3", position=3)]
-    time_range = TimeRange.SHORT
     collected_date = "2024-01-01"
     insert_statement = "INSERT INTO top_track (spotify_user_id, track_id, collected_date, position, position_change, is_new, time_range) VALUES (%s, %s, %s, %s, %s, %s, %s);"
 
@@ -129,7 +174,7 @@ def test__store_top_items_calls_expected_mysql_methods_with_expected_params(
         user_id=user_id,
         top_items=top_items,
         item_type=ItemType.TRACK,
-        time_range=time_range,
+        time_range=TimeRange.SHORT,
         collected_date=collected_date
     )
 
@@ -231,7 +276,7 @@ def test__store_top_items_with_position_changes_no_top_items_prev(db_service):
     )
 
 
-# 12. Test store_top_artists calls _store_top_items_with_position_changes with expected params.
+# 11. Test store_top_artists calls _store_top_items_with_position_changes with expected params.
 def test_store_top_artists_calls__store_top_items_with_position_changes_with_expected_params(db_service):
     top_artists = [TopItem(id="1", position=1), TopItem(id="2", position=2), TopItem(id="3", position=3)]
     mock__store_top_items_with_position_changes = Mock()
@@ -256,7 +301,7 @@ def test_store_top_artists_calls__store_top_items_with_position_changes_with_exp
     )
 
 
-# 13. Test store_top_tracks calls _store_top_items_with_position_changes with expected params.
+# 12. Test store_top_tracks calls _store_top_items_with_position_changes with expected params.
 def test_store_top_tracks_calls__store_top_items_with_expected_params(db_service):
     mock__store_top_items_with_position_changes = Mock()
     db_service._store_top_items_with_position_changes = mock__store_top_items_with_position_changes
