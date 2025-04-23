@@ -163,12 +163,75 @@ def test_calculate_position_changes_returns_expected_top_items(db_service):
     assert items_with_position_changes == expected_items_with_position_changes
 
 
-# 9. Test _store_top_items_with_position_changes calls _store_top_items with expected params.
-def test__store_top_items_with_position_changes_calls__store_top_items_with_expected_params():
-    pass
+# 9. Test _store_top_items_with_position_changes calls _calculate_position_changes if top items prev exists.
+def test__store_top_items_with_position_changes_top_items_prev_exists(db_service):
+    top_items_current = [TopItem(id="1", position=1)]
+    top_items_prev = [TopItem(id="1", position=2)]
+    top_items_with_position_changes = [TopItem(id="1", position=1, position_change=1)]
+    user_id = str(uuid.uuid4())
+    item_type = ItemType.TRACK
+    time_range = TimeRange.SHORT
+    mock__get_top_items = Mock()
+    mock__get_top_items.return_value = top_items_prev
+    mock__store_top_items = Mock()
+    mock__calculate_position_changes = Mock()
+    mock__calculate_position_changes.return_value = top_items_with_position_changes
+    db_service._get_top_items = mock__get_top_items
+    db_service._calculate_position_changes = mock__calculate_position_changes
+    db_service._store_top_items = mock__store_top_items
+
+    db_service._store_top_items_with_position_changes(
+        user_id=user_id,
+        top_items=top_items_current,
+        item_type=item_type,
+        time_range=time_range,
+        collected_date=datetime.strptime("2024-01-01", "%Y-%m-%d")
+    )
+
+    mock__calculate_position_changes.assert_called_once_with(items_current=top_items_current, items_prev=top_items_prev)
+    mock__store_top_items.assert_called_once_with(
+        user_id=user_id,
+        top_items=top_items_with_position_changes,
+        item_type=item_type,
+        time_range=time_range,
+        collected_date="2024-01-01"
+    )
 
 
-# 10. Test store_top_artists calls _store_top_items_with_position_changes with expected params.
+# 10. Test _store_top_items_with_position_changes does not call _calculate_position_changes if top items prev does not exist.
+def test__store_top_items_with_position_changes_no_top_items_prev(db_service):
+    top_items_current = [TopItem(id="1", position=1)]
+    top_items_prev = []
+    user_id = str(uuid.uuid4())
+    item_type = ItemType.TRACK
+    time_range = TimeRange.SHORT
+    mock__get_top_items = Mock()
+    mock__get_top_items.return_value = top_items_prev
+    mock__store_top_items = Mock()
+    mock__calculate_position_changes = Mock()
+    db_service._get_top_items = mock__get_top_items
+    db_service._calculate_position_changes = mock__calculate_position_changes
+    db_service._store_top_items = mock__store_top_items
+
+    db_service._store_top_items_with_position_changes(
+        user_id=user_id,
+        top_items=top_items_current,
+        item_type=item_type,
+        time_range=time_range,
+        collected_date=datetime.strptime("2024-01-01", "%Y-%m-%d")
+    )
+
+    mock__calculate_position_changes.assert_not_called()
+    mock__store_top_items.assert_called_once_with(
+        user_id=user_id,
+        top_items=top_items_current,
+        item_type=item_type,
+        time_range=time_range,
+        collected_date="2024-01-01"
+    )
+
+
+# 12. Test store_top_artists calls _store_top_items_with_position_changes with expected params.
 def test_store_top_artists_calls__store_top_items_with_position_changes_with_expected_params(db_service):
     top_artists = [TopItem(id="1", position=1), TopItem(id="2", position=2), TopItem(id="3", position=3)]
     mock__store_top_items_with_position_changes = Mock()
@@ -193,7 +256,7 @@ def test_store_top_artists_calls__store_top_items_with_position_changes_with_exp
     )
 
 
-# 11. Test store_top_tracks calls _store_top_items_with_position_changes with expected params.
+# 13. Test store_top_tracks calls _store_top_items_with_position_changes with expected params.
 def test_store_top_tracks_calls__store_top_items_with_expected_params(db_service):
     mock__store_top_items_with_position_changes = Mock()
     db_service._store_top_items_with_position_changes = mock__store_top_items_with_position_changes
