@@ -9,12 +9,19 @@ class TimeRange(str, Enum):
 
 
 @dataclass
+class ComparisonIntervalDays:
+    short_term: int
+    medium_term: int
+    long_term: int
+
+
+@dataclass
 class Settings:
     db_host: str
     db_name: str
     db_user: str
     db_pass: str
-
+    comparison_interval_days: ComparisonIntervalDays
 
 @dataclass
 class TopItem:

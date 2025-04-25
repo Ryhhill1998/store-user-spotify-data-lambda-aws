@@ -7,7 +7,7 @@ import numpy as np
 from loguru import logger
 import pandas as pd
 
-from src.models import TopItem, TimeRange
+from src.models import TopItem, TimeRange, ComparisonIntervalDays
 
 
 class ItemType(str, Enum):
@@ -21,8 +21,13 @@ class DBServiceException(Exception):
 
 
 class DBService:
-    def __init__(self, connection: mysql.connector.pooling.PooledMySQLConnection):
+    def __init__(
+            self,
+            connection: mysql.connector.pooling.PooledMySQLConnection,
+            comparison_interval_days: ComparisonIntervalDays
+    ):
         self.connection = connection
+        self.comparison_interval_days = comparison_interval_days
 
     def update_refresh_token(self, user_id: str, refresh_token: str):
         cursor = self.connection.cursor()
@@ -142,7 +147,8 @@ class DBService:
             time_range: TimeRange,
             collected_date: datetime
     ):
-        prev_date = (collected_date - timedelta(days=1)).strftime("%Y-%m-%d")
+        days = getattr(self.comparison_interval_days, time_range.value)
+        prev_date = (collected_date - timedelta(days=days)).strftime("%Y-%m-%d")
         top_items_prev = self._get_top_items(
             user_id=user_id,
             item_type=item_type,

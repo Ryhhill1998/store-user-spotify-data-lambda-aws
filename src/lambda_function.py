@@ -6,7 +6,7 @@ import mysql.connector
 from loguru import logger
 
 from src.db_service import DBService
-from src.models import TopItemsData, UserSpotifyData, TopItem, TimeRange, Settings
+from src.models import TopItemsData, UserSpotifyData, TopItem, TimeRange, Settings, ComparisonIntervalDays
 
 
 def get_settings() -> Settings:
@@ -15,7 +15,19 @@ def get_settings() -> Settings:
     db_user = os.environ["DB_USER"]
     db_pass = os.environ["DB_PASS"]
 
-    settings = Settings(db_host=db_host, db_name=db_name, db_user=db_user, db_pass=db_pass)
+    comparison_interval_days = ComparisonIntervalDays(
+        short_term=int(os.environ["COMPARISON_INTERVAL_DAYS_SHORT_TERM"]),
+        medium_term=int(os.environ["COMPARISON_INTERVAL_DAYS_MEDIUM_TERM"]),
+        long_term=int(os.environ["COMPARISON_INTERVAL_DAYS_LONG_TERM"])
+    )
+
+    settings = Settings(
+        db_host=db_host,
+        db_name=db_name,
+        db_user=db_user,
+        db_pass=db_pass,
+        comparison_interval_days=comparison_interval_days
+    )
 
     return settings
 
@@ -61,7 +73,7 @@ def lambda_handler(event, context):
 
     try:
         # create db service object
-        db_service = DBService(connection)
+        db_service = DBService(connection=connection, comparison_interval_days=settings.comparison_interval_days)
 
         # 2. Update user's spotify refresh_token in DB
         if user_spotify_data.refresh_token is not None:
