@@ -2,6 +2,7 @@ import json
 import os
 import sys
 import uuid
+from datetime import datetime, timezone
 from unittest import mock
 from unittest.mock import Mock, call
 
@@ -11,12 +12,12 @@ from loguru import logger
 from src.lambda_function import get_settings, extract_user_spotify_data_from_event, lambda_handler
 from src.models import Settings, UserSpotifyData, TopItemsData, TopItem, TimeRange
 
+
 # 1. Test get_settings raises KeyError if any environment variables are missing.
 # 2. Test get_settings returns expected settings.
 # 3. Test extract_user_spotify_data_from_event raises KeyError if Records missing from event.
 # 4. Test extract_user_spotify_data_from_event raises KeyError if body missing from record.
 # 5. Test extract_user_spotify_data_from_event raises KeyError if user_id, refresh_token, top_artists_data or top_tracks_data missing from body.
-# 6. Test extract_user_spotify_data_from_event raises KeyError if id or position missing from top_artists_data or top_tracks_data.
 # 7. Test extract_user_spotify_data_from_event raises KeyError if top_items or time_range missing from top_artists_data or top_tracks_data.
 # 8. Test extract_user_spotify_data_from_event raises KeyError if id or position missing from top_items.
 # 9. Test extract_user_spotify_data_from_event returns expected user_spotify_data.
@@ -64,6 +65,97 @@ def test_get_settings_returns_expected_settings(mock_settings):
     settings = get_settings()
 
     assert settings == expected_settings
+
+
+# 3. Test extract_user_spotify_data_from_event raises KeyError if Records missing from event.
+def test_extract_user_spotify_data_from_event_raises_key_error_if_records_missing():
+    mock_event = {"test": "test"}
+
+    with pytest.raises(KeyError) as e:
+        extract_user_spotify_data_from_event(mock_event)
+
+    assert "Records" in str(e.value)
+
+
+# 4. Test extract_user_spotify_data_from_event raises KeyError if body missing from record.
+def test_extract_user_spotify_data_from_event_raises_key_error_if_body_missing_from_record():
+    mock_event = {"Records": [{"test": "test"}]}
+
+    with pytest.raises(KeyError) as e:
+        extract_user_spotify_data_from_event(mock_event)
+
+    assert "body" in str(e.value)
+
+
+# 5. Test extract_user_spotify_data_from_event raises KeyError if user_id, refresh_token, top_artists_data or top_tracks_data missing from body.
+@pytest.mark.parametrize("item", ["user_id", "refresh_token", "top_artists_data", "top_tracks_data"])
+def test_extract_user_spotify_data_from_event_raises_key_error_if_item_missing_from_body(item):
+    body = {"user_id": "123", "refresh_token": "abc", "top_artists_data": [], "top_tracks_data": []}
+    body.pop(item)
+    mock_event = {"Records": [{"body": json.dumps(body)}]}
+
+    with pytest.raises(KeyError) as e:
+        extract_user_spotify_data_from_event(mock_event)
+
+    assert item in str(e.value)
+
+
+# 7. Test extract_user_spotify_data_from_event raises KeyError if top_items or time_range missing from top_artists_data or top_tracks_data.
+@pytest.mark.parametrize(
+    "top_items_data, item",
+    [
+        ("top_artists_data", "top_items"),
+        ("top_artists_data", "time_range"),
+        ("top_tracks_data", "top_items"),
+        ("top_tracks_data", "time_range")
+    ]
+)
+def test_extract_user_spotify_data_from_event_raises_key_error_if_top_items_or_time_range_misssing_from_top_items_data(
+        top_items_data,
+        item
+):
+    body = {
+        "user_id": "123",
+        "refresh_token": "abc",
+        "top_artists_data": [{"top_items": [], "time_range": TimeRange.SHORT}],
+        "top_tracks_data": [{"top_items": [], "time_range": TimeRange.SHORT}]
+    }
+    body[top_items_data][0].pop(item)
+    mock_event = {"Records": [{"body": json.dumps(body)}]}
+
+    with pytest.raises(KeyError) as e:
+        extract_user_spotify_data_from_event(mock_event)
+
+    assert item in str(e.value)
+
+
+# 8. Test extract_user_spotify_data_from_event raises KeyError if id or position missing from top_items.
+@pytest.mark.parametrize(
+    "top_items_data, item",
+    [
+        ("top_artists_data", "id"),
+        ("top_artists_data", "position"),
+        ("top_tracks_data", "id"),
+        ("top_tracks_data", "position")
+    ]
+)
+def test_extract_user_spotify_data_from_event_raises_key_error_if_id_or_position_missing_from_top_items(
+        top_items_data,
+        item
+):
+    body = {
+        "user_id": "123",
+        "refresh_token": "abc",
+        "top_artists_data": [{"top_items": [{"id": "1", "position": 1}], "time_range": TimeRange.SHORT}],
+        "top_tracks_data": [{"top_items": [{"id": "1", "position": 1}], "time_range": TimeRange.SHORT}]
+    }
+    body[top_items_data][0]["top_items"][0].pop(item)
+    mock_event = {"Records": [{"body": json.dumps(body)}]}
+
+    with pytest.raises(KeyError) as e:
+        extract_user_spotify_data_from_event(mock_event)
+
+    assert item in str(e.value)
 
 
 # 9. Test extract_user_spotify_data_from_event returns expected user_spotify_data.
@@ -220,7 +312,25 @@ def mock_db_service(mocker) -> Mock:
     return mock_db
 
 
-# 11. Test lambda_handler raises logs expected message if Exception occurs.
+# 10. Test lambda_handler creates mysql connection with expected params.
+def test_lambda_handler_creates_mysql_connection_with_expected_params(
+        mocker,
+        mock_settings,
+        mock_user_spotify_data_factory,
+        mock_db_service
+):
+    mocker.patch(
+        "src.lambda_function.extract_user_spotify_data_from_event",
+        return_value=mock_user_spotify_data_factory()
+    )
+    mock_connect = mocker.patch("src.lambda_function.mysql.connector.connect", return_value=Mock())
+
+    lambda_handler("", "")
+
+    mock_connect.assert_called_once_with(host="DB_HOST", database="DB_NAME", user="DB_USER", password="DB_PASS")
+
+
+# 11. Test lambda_handler logs expected message if Exception occurs.
 def test_lambda_handler_logs_expected_message_if_exception_occurs(
         mocker,
         mock_settings,
@@ -244,59 +354,7 @@ def test_lambda_handler_logs_expected_message_if_exception_occurs(
     assert "Something went wrong" in logs_output
 
 
-def test_lambda_handler_closes_db_connection_if_exception_occurs(
-        mocker,
-        mock_settings,
-        mock_user_spotify_data_factory,
-        mock_connection,
-        mock_db_service
-):
-    mocker.patch(
-        "src.lambda_function.extract_user_spotify_data_from_event",
-        return_value=mock_user_spotify_data_factory()
-    )
-    mocker.patch("src.lambda_function.DBService", side_effect=Exception)
-
-    with pytest.raises(Exception):
-        lambda_handler("", "")
-
-    mock_connection.close.assert_called_once()
-
-
-def test_lambda_handler_closes_db_connection_if_successful_run(
-        mocker,
-        mock_settings,
-        mock_user_spotify_data_factory,
-        mock_connection,
-        mock_db_service
-):
-    mocker.patch(
-        "src.lambda_function.extract_user_spotify_data_from_event",
-        return_value=mock_user_spotify_data_factory()
-    )
-
-    lambda_handler("", "")
-
-    mock_connection.close.assert_called_once()
-
-
-def test_lambda_handler_does_not_update_refresh_token_if_it_is_none(
-        mocker,
-        mock_settings,
-        mock_user_spotify_data_factory,
-        mock_connection,
-        mock_db_service
-):
-    mocker.patch(
-        "src.lambda_function.extract_user_spotify_data_from_event",
-        return_value=mock_user_spotify_data_factory()
-    )
-
-    lambda_handler("", "")
-
-    mock_db_service.update_refresh_token.assert_not_called()
-
-
+# 12. Test lambda_handler updates refresh token if it is present in user_spotify_data.
 def test_lambda_handler_does_update_refresh_token_if_it_is_not_none(
         mocker,
         mock_settings,
@@ -314,12 +372,46 @@ def test_lambda_handler_does_update_refresh_token_if_it_is_not_none(
     mock_db_service.update_refresh_token.assert_called_with(user_id="123", refresh_token="abc")
 
 
-def test_lambda_handler_calls_store_top_artists_as_expected(
+# 13. Test lambda_handler does not update refresh token if it is not present in user_spotify_data.
+def test_lambda_handler_does_not_update_refresh_token_if_it_is_none(
         mocker,
         mock_settings,
         mock_user_spotify_data_factory,
         mock_connection,
         mock_db_service
+):
+    mocker.patch(
+        "src.lambda_function.extract_user_spotify_data_from_event",
+        return_value=mock_user_spotify_data_factory()
+    )
+
+    lambda_handler("", "")
+
+    mock_db_service.update_refresh_token.assert_not_called()
+
+
+@pytest.fixture
+def mock_collected_date(mocker):
+    mock_coll_date = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+    # Patch the datetime class in your module
+    class MockDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return mock_coll_date
+
+    mocker.patch("src.lambda_function.datetime", MockDateTime)
+    return mock_coll_date
+
+
+# 14. Test lambda_handler calls store_top_artists expected number of times and with expected params.
+def test_lambda_handler_calls_store_top_artists_as_expected(
+        mocker,
+        mock_settings,
+        mock_user_spotify_data_factory,
+        mock_connection,
+        mock_db_service,
+        mock_collected_date
 ):
     top_artists_data = [
         TopItemsData(
@@ -342,11 +434,6 @@ def test_lambda_handler_calls_store_top_artists_as_expected(
             top_artists_data=top_artists_data
         )
     )
-    mock_datetime = mocker.patch("src.lambda_function.datetime")
-    mock_collected_date = "2024-01-01"
-    mock_datetime_now = Mock()
-    mock_datetime_now.strftime.return_value = mock_collected_date
-    mock_datetime.now.return_value = mock_datetime_now
 
     lambda_handler("", "")
 
@@ -370,16 +457,19 @@ def test_lambda_handler_calls_store_top_artists_as_expected(
             collected_date=mock_collected_date
         )
     ]
-    mock_db_service.store_top_artists.assert_has_calls(calls=expected_calls, any_order=False)
+    print(mock_db_service.store_top_artists.call_args_list)
     assert mock_db_service.store_top_artists.call_count == 3
-    
-    
+    mock_db_service.store_top_artists.assert_has_calls(calls=expected_calls, any_order=False)
+
+
+# 15. Test lambda_handler calls store_top_tracks expected number of times and with expected params.
 def test_lambda_handler_calls_store_top_tracks_as_expected(
         mocker,
         mock_settings,
         mock_user_spotify_data_factory,
         mock_connection,
-        mock_db_service
+        mock_db_service,
+        mock_collected_date
 ):
     top_tracks_data = [
         TopItemsData(
@@ -402,11 +492,6 @@ def test_lambda_handler_calls_store_top_tracks_as_expected(
             top_tracks_data=top_tracks_data
         )
     )
-    mock_datetime = mocker.patch("src.lambda_function.datetime")
-    mock_collected_date = "2024-01-01"
-    mock_datetime_now = Mock()
-    mock_datetime_now.strftime.return_value = mock_collected_date
-    mock_datetime.now.return_value = mock_datetime_now
 
     lambda_handler("", "")
 
@@ -430,5 +515,43 @@ def test_lambda_handler_calls_store_top_tracks_as_expected(
             collected_date=mock_collected_date
         )
     ]
-    mock_db_service.store_top_tracks.assert_has_calls(calls=expected_calls, any_order=False)
     assert mock_db_service.store_top_tracks.call_count == 3
+    mock_db_service.store_top_tracks.assert_has_calls(calls=expected_calls, any_order=False)
+
+
+# 16. Test lambda_handler closes connection to db even if runs is successful.
+def test_lambda_handler_closes_db_connection_if_successful_run(
+        mocker,
+        mock_settings,
+        mock_user_spotify_data_factory,
+        mock_connection,
+        mock_db_service
+):
+    mocker.patch(
+        "src.lambda_function.extract_user_spotify_data_from_event",
+        return_value=mock_user_spotify_data_factory()
+    )
+
+    lambda_handler("", "")
+
+    mock_connection.close.assert_called_once()
+
+
+# 17. Test lambda_handler closes connection to db even if Exception occurs.
+def test_lambda_handler_closes_db_connection_if_exception_occurs(
+        mocker,
+        mock_settings,
+        mock_user_spotify_data_factory,
+        mock_connection,
+        mock_db_service
+):
+    mocker.patch(
+        "src.lambda_function.extract_user_spotify_data_from_event",
+        return_value=mock_user_spotify_data_factory()
+    )
+    mocker.patch("src.lambda_function.DBService", side_effect=Exception)
+
+    with pytest.raises(Exception):
+        lambda_handler("", "")
+
+    mock_connection.close.assert_called_once()
