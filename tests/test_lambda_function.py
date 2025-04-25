@@ -12,21 +12,10 @@ from loguru import logger
 from src.lambda_function import get_settings, extract_user_spotify_data_from_event, lambda_handler
 from src.models import Settings, UserSpotifyData, TopItemsData, TopItem, TimeRange
 
-
 # 1. Test get_settings raises KeyError if any environment variables are missing.
 # 2. Test get_settings returns expected settings.
 # 3. Test extract_user_spotify_data_from_event raises KeyError if Records missing from event.
-# 4. Test extract_user_spotify_data_from_event raises KeyError if body missing from record.
-# 5. Test extract_user_spotify_data_from_event raises KeyError if user_id, refresh_token, top_artists_data or top_tracks_data missing from body.
-# 7. Test extract_user_spotify_data_from_event raises KeyError if top_items or time_range missing from top_artists_data or top_tracks_data.
-# 8. Test extract_user_spotify_data_from_event raises KeyError if id or position missing from top_items.
-# 9. Test extract_user_spotify_data_from_event returns expected user_spotify_data.
-# 10. Test lambda_handler creates mysql connection with expected params.
-# 11. Test lambda_handler raises logs expected message if Exception occurs.
-# 12. Test lambda_handler updates refresh token if it is present in user_spotify_data.
-# 13. Test lambda_handler does not update refresh token if it is not present in user_spotify_data.
-# 14. Test lambda_handler calls store_top_artists and store_top_tracks of db_service expected number of times and with expected params.
-# 15. Test lambda_handler closes connection to db even if Exception occurs.
+# 16. Test lambda_handler closes connection to db even if Exception occurs.
 
 
 @pytest.fixture
@@ -100,7 +89,7 @@ def test_extract_user_spotify_data_from_event_raises_key_error_if_item_missing_f
     assert item in str(e.value)
 
 
-# 7. Test extract_user_spotify_data_from_event raises KeyError if top_items or time_range missing from top_artists_data or top_tracks_data.
+# 6. Test extract_user_spotify_data_from_event raises KeyError if top_items or time_range missing from top_artists_data or top_tracks_data.
 @pytest.mark.parametrize(
     "top_items_data, item",
     [
@@ -129,7 +118,7 @@ def test_extract_user_spotify_data_from_event_raises_key_error_if_top_items_or_t
     assert item in str(e.value)
 
 
-# 8. Test extract_user_spotify_data_from_event raises KeyError if id or position missing from top_items.
+# 7. Test extract_user_spotify_data_from_event raises KeyError if id or position missing from top_items.
 @pytest.mark.parametrize(
     "top_items_data, item",
     [
@@ -158,7 +147,7 @@ def test_extract_user_spotify_data_from_event_raises_key_error_if_id_or_position
     assert item in str(e.value)
 
 
-# 9. Test extract_user_spotify_data_from_event returns expected user_spotify_data.
+# 8. Test extract_user_spotify_data_from_event returns expected user_spotify_data.
 def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data():
     user_id = str(uuid.uuid4())
     refresh_token = str(uuid.uuid4())
@@ -312,7 +301,7 @@ def mock_db_service(mocker) -> Mock:
     return mock_db
 
 
-# 10. Test lambda_handler creates mysql connection with expected params.
+# 9. Test lambda_handler creates mysql connection with expected params.
 def test_lambda_handler_creates_mysql_connection_with_expected_params(
         mocker,
         mock_settings,
@@ -330,7 +319,7 @@ def test_lambda_handler_creates_mysql_connection_with_expected_params(
     mock_connect.assert_called_once_with(host="DB_HOST", database="DB_NAME", user="DB_USER", password="DB_PASS")
 
 
-# 11. Test lambda_handler logs expected message if Exception occurs.
+# 10. Test lambda_handler logs expected message if Exception occurs.
 def test_lambda_handler_logs_expected_message_if_exception_occurs(
         mocker,
         mock_settings,
@@ -354,7 +343,7 @@ def test_lambda_handler_logs_expected_message_if_exception_occurs(
     assert "Something went wrong" in logs_output
 
 
-# 12. Test lambda_handler updates refresh token if it is present in user_spotify_data.
+# 11. Test lambda_handler updates refresh token if it is present in user_spotify_data.
 def test_lambda_handler_does_update_refresh_token_if_it_is_not_none(
         mocker,
         mock_settings,
@@ -372,7 +361,7 @@ def test_lambda_handler_does_update_refresh_token_if_it_is_not_none(
     mock_db_service.update_refresh_token.assert_called_with(user_id="123", refresh_token="abc")
 
 
-# 13. Test lambda_handler does not update refresh token if it is not present in user_spotify_data.
+# 12. Test lambda_handler does not update refresh token if it is not present in user_spotify_data.
 def test_lambda_handler_does_not_update_refresh_token_if_it_is_none(
         mocker,
         mock_settings,
@@ -404,7 +393,7 @@ def mock_collected_date(mocker):
     return mock_coll_date
 
 
-# 14. Test lambda_handler calls store_top_artists expected number of times and with expected params.
+# 13. Test lambda_handler calls store_top_artists expected number of times and with expected params.
 def test_lambda_handler_calls_store_top_artists_as_expected(
         mocker,
         mock_settings,
@@ -462,7 +451,7 @@ def test_lambda_handler_calls_store_top_artists_as_expected(
     mock_db_service.store_top_artists.assert_has_calls(calls=expected_calls, any_order=False)
 
 
-# 15. Test lambda_handler calls store_top_tracks expected number of times and with expected params.
+# 14. Test lambda_handler calls store_top_tracks expected number of times and with expected params.
 def test_lambda_handler_calls_store_top_tracks_as_expected(
         mocker,
         mock_settings,
@@ -519,7 +508,7 @@ def test_lambda_handler_calls_store_top_tracks_as_expected(
     mock_db_service.store_top_tracks.assert_has_calls(calls=expected_calls, any_order=False)
 
 
-# 16. Test lambda_handler closes connection to db even if runs is successful.
+# 15. Test lambda_handler closes connection to db even if runs is successful.
 def test_lambda_handler_closes_db_connection_if_successful_run(
         mocker,
         mock_settings,
@@ -537,7 +526,7 @@ def test_lambda_handler_closes_db_connection_if_successful_run(
     mock_connection.close.assert_called_once()
 
 
-# 17. Test lambda_handler closes connection to db even if Exception occurs.
+# 16. Test lambda_handler closes connection to db even if Exception occurs.
 def test_lambda_handler_closes_db_connection_if_exception_occurs(
         mocker,
         mock_settings,

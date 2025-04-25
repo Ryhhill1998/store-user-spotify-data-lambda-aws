@@ -116,7 +116,11 @@ def test__get_top_items_returns_expected_top_items(
         mock_db_connection,
         mock_cursor
 ):
-    mock_fetchall_results = [{"id": "1", "position": 1}, {"id": "2", "position": 2}, {"id": "3", "position": 3}]
+    mock_fetchall_results = [
+        {"track_id": "1", "position": 1},
+        {"track_id": "2", "position": 2},
+        {"track_id": "3", "position": 3}
+    ]
     mock_cursor.fetchall.return_value = mock_fetchall_results
 
     top_items = db_service._get_top_items(

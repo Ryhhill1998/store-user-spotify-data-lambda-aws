@@ -62,7 +62,7 @@ class DBService:
             )
             cursor.execute(select_statement, (user_id, time_range.value, collected_date))
             results = cursor.fetchall()
-            top_items = [TopItem(id=entry["id"], position=entry["position"]) for entry in results]
+            top_items = [TopItem(id=entry[f"{item_type.value}_id"], position=entry["position"]) for entry in results]
             return top_items
         except mysql.connector.Error as e:
             error_message = f"Failed to get top artists. User ID: {user_id}, time range: {time_range.value}"
