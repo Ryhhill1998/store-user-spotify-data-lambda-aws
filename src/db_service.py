@@ -1,13 +1,10 @@
-from dataclasses import asdict
-from datetime import timedelta, datetime
+from datetime import datetime
 from enum import Enum
 
 import mysql.connector
-import numpy as np
 from loguru import logger
-import pandas as pd
 
-from src.models import TopItem, TimeRange
+from src.models import TimeRange, TopArtist, TopTrack, TopGenre, TopEmotion
 
 
 class ItemType(str, Enum):
@@ -43,65 +40,128 @@ class DBService:
         finally:
             cursor.close()
 
-    def _get_top_items(
+    def store_top_artists(
             self,
             user_id: str,
-            item_type: ItemType,
+            top_artists: list[TopArtist],
             time_range: TimeRange,
-            collected_date: str
-    ) -> list[TopItem]:
-        cursor = self.connection.cursor(dictionary=True)
+            collected_date: datetime
+    ):
+        insert_statement = (
+            "INSERT INTO top_artist ("
+            "spotify_user_id, "
+            "artist_id, "
+            "collected_date, "
+            "time_range, "
+            "position"
+            ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
+        )
+
+        values = [(user_id, artist.id, collected_date, time_range.value, artist.position) for artist in top_artists]
+
+        cursor = self.connection.cursor()
 
         try:
-            select_statement = (
-                f"SELECT * FROM top_{item_type.value} "
-                "WHERE spotify_user_id = %s "
-                "AND time_range = %s "
-                "AND collected_date = %s "
-                "ORDER BY position ASC;"
-            )
-            cursor.execute(select_statement, (user_id, time_range.value, collected_date))
-            results = cursor.fetchall()
-            top_items = [TopItem(id=entry[f"{item_type.value}_id"], position=entry["position"]) for entry in results]
-            return top_items
+            cursor.executemany(insert_statement, values)
+            self.connection.commit()
         except mysql.connector.Error as e:
-            error_message = f"Failed to get top artists. User ID: {user_id}, time range: {time_range.value}"
+            self.connection.rollback()
+            error_message = "Failed to store top artists"
             logger.error(f"{error_message} - {e}")
             raise DBServiceException(error_message)
         finally:
             cursor.close()
 
-    def _store_top_items(
+    def store_top_tracks(
             self,
             user_id: str,
-            top_items: list[TopItem],
-            item_type: ItemType,
+            top_tracks: list[TopTrack],
             time_range: TimeRange,
-            collected_date: str
+            collected_date: datetime
     ):
         insert_statement = (
-            f"INSERT INTO top_{item_type.value} ("
-                "spotify_user_id, "
-                f"{item_type.value}_id, "
-                "collected_date, "
-                "position, "
-                "position_change, "
-                "is_new, "
-                "time_range"
+            "INSERT INTO top_track ("
+            "spotify_user_id, "
+            "track_id, "
+            "collected_date, "
+            "time_range, "
+            "position"
+            ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
+        )
+
+        values = [(user_id, track.id, collected_date, time_range.value, track.position) for track in top_tracks]
+
+        cursor = self.connection.cursor()
+
+        try:
+            cursor.executemany(insert_statement, values)
+            self.connection.commit()
+        except mysql.connector.Error as e:
+            self.connection.rollback()
+            error_message = "Failed to store top tracks"
+            logger.error(f"{error_message} - {e}")
+            raise DBServiceException(error_message)
+        finally:
+            cursor.close()
+
+    def store_top_genres(
+            self,
+            user_id: str,
+            top_genres: list[TopGenre],
+            time_range: TimeRange,
+            collected_date: datetime
+    ):
+        insert_statement = (
+            "INSERT INTO top_genre ("
+            "spotify_user_id, "
+            "genre_name, "
+            "collected_date, "
+            "time_range, "
+            "count"
+            ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
+        )
+
+        values = [(user_id, genre.name, collected_date, time_range.value, genre.count) for genre in top_genres]
+
+        cursor = self.connection.cursor()
+
+        try:
+            cursor.executemany(insert_statement, values)
+            self.connection.commit()
+        except mysql.connector.Error as e:
+            self.connection.rollback()
+            error_message = "Failed to store top genres"
+            logger.error(f"{error_message} - {e}")
+            raise DBServiceException(error_message)
+        finally:
+            cursor.close()
+
+    def store_top_emotions(
+            self,
+            user_id: str,
+            top_emotions: list[TopEmotion],
+            time_range: TimeRange,
+            collected_date: datetime
+    ):
+        insert_statement = (
+            "INSERT INTO top_emotion ("
+            "spotify_user_id, "
+            "emotion_name, "
+            "collected_date, "
+            "time_range, "
+            "percentage"
             ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
         )
 
         values = [
             (
                 user_id,
-                item.id,
+                emotion.name,
                 collected_date,
-                item.position,
-                item.position_change,
-                item.is_new,
-                time_range.value
+                time_range.value,
+                emotion.percentage
             )
-            for item in top_items
+            for emotion in top_emotions
         ]
 
         cursor = self.connection.cursor()
@@ -111,84 +171,8 @@ class DBService:
             self.connection.commit()
         except mysql.connector.Error as e:
             self.connection.rollback()
-            error_message = "Failed to store top items"
+            error_message = "Failed to store top emotions"
             logger.error(f"{error_message} - {e}")
             raise DBServiceException(error_message)
         finally:
             cursor.close()
-
-    @staticmethod
-    def _calculate_position_changes(items_current: list[TopItem], items_prev: list[TopItem]):
-        latest_df = pd.DataFrame([asdict(item) for item in items_current])
-        prev_df = pd.DataFrame([asdict(item) for item in items_prev])
-        merged_df = pd.merge(
-            latest_df,
-            prev_df[["id", "position"]],
-            on=["id"],
-            how="left",
-            suffixes=("", "_prev")
-        )
-        merged_df["position_change"] = merged_df["position_prev"] - merged_df["position"]
-        merged_df["is_new"] = pd.isna(merged_df["position_change"])
-        records = merged_df[["id", "position", "position_change", "is_new"]].replace({np.nan: None}).to_dict("records")
-        items_with_position_changes = [TopItem(**record) for record in records]
-        return items_with_position_changes
-
-    def _store_top_items_with_position_changes(
-            self,
-            user_id: str,
-            top_items: list[TopItem],
-            item_type: ItemType,
-            time_range: TimeRange,
-            collected_date: datetime
-    ):
-        prev_date = (collected_date - timedelta(days=1)).strftime("%Y-%m-%d")
-        top_items_prev = self._get_top_items(
-            user_id=user_id,
-            item_type=item_type,
-            time_range=time_range,
-            collected_date=prev_date
-        )
-
-        if top_items_prev:
-            top_items_to_store = self._calculate_position_changes(items_current=top_items, items_prev=top_items_prev)
-        else:
-            top_items_to_store = top_items
-
-        self._store_top_items(
-            user_id=user_id,
-            top_items=top_items_to_store,
-            item_type=item_type,
-            time_range=time_range,
-            collected_date=collected_date.strftime("%Y-%m-%d")
-        )
-
-    def store_top_artists(
-            self,
-            user_id: str,
-            top_artists: list[TopItem],
-            time_range: TimeRange,
-            collected_date: datetime
-    ):
-        self._store_top_items_with_position_changes(
-            user_id=user_id,
-            top_items=top_artists,
-            item_type=ItemType.ARTIST,
-            time_range=time_range,
-            collected_date=collected_date
-        )
-
-    def store_top_tracks(
-            self,
-            user_id: str,
-            top_tracks: list[TopItem],
-            time_range: TimeRange,
-            collected_date: datetime
-    ):
-        self._store_top_items_with_position_changes(
-            user_id=user_id,
-            top_items=top_tracks,
-            item_type=ItemType.TRACK,
-            time_range=time_range,
-            collected_date=collected_date
-        )
