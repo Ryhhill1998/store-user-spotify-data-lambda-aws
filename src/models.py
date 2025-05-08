@@ -66,7 +66,8 @@ class TopEmotionsData:
 
 @dataclass
 class UserSpotifyData:
-    refresh_token: str
+    user_id: str
+    refresh_token: str | None
     top_artists_data: list[TopArtistsData]
     top_tracks_data: list[TopTracksData]
     top_genres_data: list[TopGenresData]

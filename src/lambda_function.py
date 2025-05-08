@@ -6,7 +6,8 @@ import mysql.connector
 from loguru import logger
 
 from src.db_service import DBService
-from src.models import TopItemsData, UserSpotifyData, TopItem, TimeRange, Settings
+from src.models import UserSpotifyData, Settings, TopArtist, TopArtistsData, TopTracksData, TopTrack, \
+    TopGenresData, TopGenre, TopEmotion, TopEmotionsData
 
 
 def get_settings() -> Settings:
@@ -26,21 +27,53 @@ def extract_user_spotify_data_from_event(event: dict) -> UserSpotifyData:
 
     user_id = data["user_id"]
     refresh_token = data["refresh_token"]
+    
+    top_artists_data_raw = data["top_artists_data_raw"]
+    top_tracks_data_raw = data["top_tracks_data_raw"]
+    top_genres_data_raw = data["top_genres_data_raw"]
+    top_emotions_data_raw = data["top_emotions_data_raw"]
+    
+    top_artists_data = []
+    for entry in top_artists_data_raw:
+        time_range = entry["time_range"]
+        top_artists_raw = entry["top_artists"]
+        top_artists = [TopArtist(id=artist["id"], position=artist["position"]) for artist in top_artists_raw]
+        top_artists_data.append(TopArtistsData(top_artists=top_artists, time_range=time_range))
 
-    def parse_top_items_data(top_items_data_raw: dict) -> TopItemsData:
-        top_items = [TopItem(id=item["id"], position=item["position"]) for item in top_items_data_raw["top_items"]]
-        time_range = TimeRange(top_items_data_raw["time_range"])
-        top_items_data = TopItemsData(top_items=top_items, time_range=time_range)
-        return top_items_data
+    top_tracks_data = []
+    for entry in top_tracks_data_raw:
+        time_range = entry["time_range"]
+        top_tracks_raw = entry["top_tracks"]
+        top_tracks = [TopTrack(id=track["id"], position=track["position"]) for track in top_tracks_raw]
+        top_tracks_data.append(TopTracksData(top_tracks=top_tracks, time_range=time_range))
 
-    top_artists_data = list(map(parse_top_items_data, data["top_artists_data"]))
-    top_tracks_data = list(map(parse_top_items_data, data["top_tracks_data"]))
+    top_genres_data = []
+    for entry in top_genres_data_raw:
+        time_range = entry["time_range"]
+        top_genres_raw = entry["top_genres"]
+        top_genres = [TopGenre(name=genre["name"], count=genre["count"]) for genre in top_genres_raw]
+        top_genres_data.append(TopGenresData(top_genres=top_genres, time_range=time_range))
+
+    top_emotions_data = []
+    for entry in top_emotions_data_raw:
+        time_range = entry["time_range"]
+        top_emotions_raw = entry["top_emotions"]
+        top_emotions = [
+            TopEmotion(
+                name=emotion["name"],
+                percentage=emotion["percentage"]
+            )
+            for emotion in top_emotions_raw
+        ]
+        top_emotions_data.append(TopEmotionsData(top_emotions=top_emotions, time_range=time_range))
 
     user_spotify_data = UserSpotifyData(
         user_id=user_id,
         refresh_token=refresh_token,
         top_artists_data=top_artists_data,
-        top_tracks_data=top_tracks_data
+        top_tracks_data=top_tracks_data,
+        top_genres_data=top_genres_data,
+        top_emotions_data=top_emotions_data
     )
     return user_spotify_data
 
@@ -77,16 +110,34 @@ def lambda_handler(event, context):
         for entry in user_spotify_data.top_artists_data:
             db_service.store_top_artists(
                 user_id=user_spotify_data.user_id,
-                top_artists=entry.top_items,
+                top_artists=entry.top_artists,
                 time_range=entry.time_range,
                 collected_date=collected_date
             )
 
-        # 3a. Add top tracks
+        # 3b. Add top tracks
         for entry in user_spotify_data.top_tracks_data:
             db_service.store_top_tracks(
                 user_id=user_spotify_data.user_id,
-                top_tracks=entry.top_items,
+                top_tracks=entry.top_tracks,
+                time_range=entry.time_range,
+                collected_date=collected_date
+            )
+
+        # 3c. Add top genres
+        for entry in user_spotify_data.top_genres_data:
+            db_service.store_top_genres(
+                user_id=user_spotify_data.user_id,
+                top_genres=entry.top_genres,
+                time_range=entry.time_range,
+                collected_date=collected_date
+            )
+
+        # 3d. Add top emotions
+        for entry in user_spotify_data.top_emotions_data:
+            db_service.store_top_emotions(
+                user_id=user_spotify_data.user_id,
+                top_emotions=entry.top_emotions,
                 time_range=entry.time_range,
                 collected_date=collected_date
             )
