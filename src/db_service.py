@@ -8,8 +8,10 @@ from src.models import TimeRange, TopArtist, TopTrack, TopGenre, TopEmotion
 
 
 class ItemType(str, Enum):
-    ARTIST = "artist"
-    TRACK = "track"
+    ARTISTS = "artists"
+    TRACKS = "tracks"
+    GENRES = "genres"
+    EMOTIONS = "emotions"
 
 
 class DBServiceException(Exception):
@@ -22,23 +24,27 @@ class DBService:
         self.connection = connection
 
     def update_refresh_token(self, user_id: str, refresh_token: str):
-        cursor = self.connection.cursor()
+        with self.connection.cursor() as cursor:
+            try:
+                update_statement = (
+                    "UPDATE spotify_user "
+                    "SET refresh_token = %s "
+                    "WHERE id = %s;"
+                )
+                cursor.execute(update_statement, (user_id, refresh_token))
+            except mysql.connector.Error as e:
+                error_message = "Failed to update user's refresh token"
+                logger.error(f"{error_message} - {e}")
+                raise DBServiceException(error_message)
 
-        try:
-            update_statement = (
-                "UPDATE spotify_user "
-                "SET refresh_token = %s "
-                "WHERE id = %s;"
-            )
-            cursor.execute(update_statement, (user_id, refresh_token))
-            self.connection.commit()
-        except mysql.connector.Error as e:
-            self.connection.rollback()
-            error_message = "Failed to update user's refresh token"
-            logger.error(f"{error_message} - {e}")
-            raise DBServiceException(error_message)
-        finally:
-            cursor.close()
+    def _store_top_items(self, item_type: ItemType, insert_statement: str, values: list[tuple]):
+        with self.connection.cursor() as cursor:
+            try:
+                cursor.executemany(insert_statement, values)
+            except mysql.connector.Error as e:
+                error_message = f"Failed to store top {item_type.value}"
+                logger.error(f"{error_message} - {e}")
+                raise DBServiceException(error_message)
 
     def store_top_artists(
             self,
@@ -59,18 +65,7 @@ class DBService:
 
         values = [(user_id, artist.id, collected_date, time_range.value, artist.position) for artist in top_artists]
 
-        cursor = self.connection.cursor()
-
-        try:
-            cursor.executemany(insert_statement, values)
-            self.connection.commit()
-        except mysql.connector.Error as e:
-            self.connection.rollback()
-            error_message = "Failed to store top artists"
-            logger.error(f"{error_message} - {e}")
-            raise DBServiceException(error_message)
-        finally:
-            cursor.close()
+        self._store_top_items(item_type=ItemType.ARTISTS, insert_statement=insert_statement, values=values)
 
     def store_top_tracks(
             self,
@@ -91,18 +86,7 @@ class DBService:
 
         values = [(user_id, track.id, collected_date, time_range.value, track.position) for track in top_tracks]
 
-        cursor = self.connection.cursor()
-
-        try:
-            cursor.executemany(insert_statement, values)
-            self.connection.commit()
-        except mysql.connector.Error as e:
-            self.connection.rollback()
-            error_message = "Failed to store top tracks"
-            logger.error(f"{error_message} - {e}")
-            raise DBServiceException(error_message)
-        finally:
-            cursor.close()
+        self._store_top_items(item_type=ItemType.TRACKS, insert_statement=insert_statement, values=values)
 
     def store_top_genres(
             self,
@@ -123,18 +107,7 @@ class DBService:
 
         values = [(user_id, genre.name, collected_date, time_range.value, genre.count) for genre in top_genres]
 
-        cursor = self.connection.cursor()
-
-        try:
-            cursor.executemany(insert_statement, values)
-            self.connection.commit()
-        except mysql.connector.Error as e:
-            self.connection.rollback()
-            error_message = "Failed to store top genres"
-            logger.error(f"{error_message} - {e}")
-            raise DBServiceException(error_message)
-        finally:
-            cursor.close()
+        self._store_top_items(item_type=ItemType.GENRES, insert_statement=insert_statement, values=values)
 
     def store_top_emotions(
             self,
@@ -164,15 +137,4 @@ class DBService:
             for emotion in top_emotions
         ]
 
-        cursor = self.connection.cursor()
-
-        try:
-            cursor.executemany(insert_statement, values)
-            self.connection.commit()
-        except mysql.connector.Error as e:
-            self.connection.rollback()
-            error_message = "Failed to store top emotions"
-            logger.error(f"{error_message} - {e}")
-            raise DBServiceException(error_message)
-        finally:
-            cursor.close()
+        self._store_top_items(item_type=ItemType.EMOTIONS, insert_statement=insert_statement, values=values)
