@@ -10,11 +10,12 @@ import pytest
 from loguru import logger
 
 from src.lambda_function import get_settings, extract_user_spotify_data_from_event, lambda_handler
-from src.models import Settings, UserSpotifyData, TopItemsData, TopItem, TimeRange
+from src.models import Settings, UserSpotifyData, TimeRange
 
 # 1. Test get_settings raises KeyError if any environment variables are missing.
 # 2. Test get_settings returns expected settings.
-# 3. Test extract_user_spotify_data_from_event raises KeyError if Records missing from event.
+# 3. Test extract_user_spotify_data_from_event raises KeyError if missing fields in event.
+# 4. Test extract_user_spotify_data_from_event returns expected user spotify data.
 # 16. Test lambda_handler closes connection to db even if Exception occurs.
 
 

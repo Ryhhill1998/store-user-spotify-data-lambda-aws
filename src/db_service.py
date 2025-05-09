@@ -24,27 +24,37 @@ class DBService:
         self.connection = connection
 
     def update_refresh_token(self, user_id: str, refresh_token: str):
-        with self.connection.cursor() as cursor:
-            try:
-                update_statement = (
-                    "UPDATE spotify_user "
-                    "SET refresh_token = %s "
-                    "WHERE id = %s;"
-                )
-                cursor.execute(update_statement, (user_id, refresh_token))
-            except mysql.connector.Error as e:
-                error_message = "Failed to update user's refresh token"
-                logger.error(f"{error_message} - {e}")
-                raise DBServiceException(error_message)
+        cursor = self.connection.cursor()
+
+        try:
+            update_statement = (
+                "UPDATE spotify_user "
+                "SET refresh_token = %s "
+                "WHERE id = %s;"
+            )
+            cursor.execute(update_statement, (user_id, refresh_token))
+            self.connection.commit()
+        except mysql.connector.Error as e:
+            self.connection.rollback()
+            error_message = "Failed to update user's refresh token"
+            logger.error(f"{error_message} - {e}")
+            raise DBServiceException(error_message)
+        finally:
+            cursor.close()
 
     def _store_top_items(self, item_type: ItemType, insert_statement: str, values: list[tuple]):
-        with self.connection.cursor() as cursor:
-            try:
-                cursor.executemany(insert_statement, values)
-            except mysql.connector.Error as e:
-                error_message = f"Failed to store top {item_type.value}"
-                logger.error(f"{error_message} - {e}")
-                raise DBServiceException(error_message)
+        cursor = self.connection.cursor()
+
+        try:
+            cursor.executemany(insert_statement, values)
+            self.connection.commit()
+        except mysql.connector.Error as e:
+            self.connection.rollback()
+            error_message = f"Failed to store top {item_type.value}"
+            logger.error(f"{error_message} - {e}")
+            raise DBServiceException(error_message)
+        finally:
+            cursor.close()
 
     def store_top_artists(
             self,

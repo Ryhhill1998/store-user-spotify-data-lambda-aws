@@ -1,6 +1,5 @@
-import uuid
 from datetime import datetime
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import mysql.connector
 import pytest
@@ -20,10 +19,8 @@ from src.models import TimeRange, TopArtist, TopTrack, TopGenre, TopEmotion
 
 
 @pytest.fixture
-def mock_cursor() -> MagicMock:
-    mock_cur = MagicMock()
-    mock_cur.__enter__.return_value = mock_cur
-    mock_cur.__exit__.return_value = None
+def mock_cursor() -> Mock:
+    mock_cur = Mock()
     return mock_cur
 
 @pytest.fixture
