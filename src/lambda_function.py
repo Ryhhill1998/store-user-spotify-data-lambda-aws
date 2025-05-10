@@ -28,10 +28,10 @@ def extract_user_spotify_data_from_event(event: dict) -> UserSpotifyData:
     user_id = data["user_id"]
     refresh_token = data["refresh_token"]
     
-    top_artists_data_raw = data["top_artists_data_raw"]
-    top_tracks_data_raw = data["top_tracks_data_raw"]
-    top_genres_data_raw = data["top_genres_data_raw"]
-    top_emotions_data_raw = data["top_emotions_data_raw"]
+    top_artists_data_raw = data["top_artists_data"]
+    top_tracks_data_raw = data["top_tracks_data"]
+    top_genres_data_raw = data["top_genres_data"]
+    top_emotions_data_raw = data["top_emotions_data"]
     
     top_artists_data = []
     for entry in top_artists_data_raw:
