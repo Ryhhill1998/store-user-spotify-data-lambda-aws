@@ -11,7 +11,8 @@ import pytest
 from loguru import logger
 
 from src.lambda_function import get_settings, extract_user_spotify_data_from_event, lambda_handler
-from src.models import Settings, UserSpotifyData, TimeRange
+from src.models import Settings, UserSpotifyData, TimeRange, TopArtist, TopArtistsData, TopTracksData, TopTrack, \
+    TopGenresData, TopGenre, TopEmotionsData, TopEmotion
 
 
 # 1. Test get_settings raises KeyError if any environment variables are missing.
@@ -199,7 +200,96 @@ def test_extract_user_spotify_data_from_event_raises_key_error_if_records_missin
 
 
 # 4. Test extract_user_spotify_data_from_event returns expected user spotify data.
+def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data(mock_event):
+    convert_body_to_json_string(mock_event)
 
+    user_spotify_data = extract_user_spotify_data_from_event(mock_event)
+
+    expected_user_spotify_data = UserSpotifyData(
+        user_id="1",
+        refresh_token="refresh",
+        top_artists_data=[
+            TopArtistsData(
+                top_artists=[
+                    TopArtist(id="1", position=1), TopArtist(id="2", position=2)
+                ],
+                time_range=TimeRange.SHORT
+            ),
+            TopArtistsData(
+                top_artists=[
+                    TopArtist(id="1", position=1), TopArtist(id="2", position=2)
+                ],
+                time_range=TimeRange.MEDIUM
+            ),
+            TopArtistsData(
+                top_artists=[
+                    TopArtist(id="1", position=1), TopArtist(id="2", position=2)
+                ],
+                time_range=TimeRange.LONG
+            )
+        ],
+        top_tracks_data=[
+            TopTracksData(
+                top_tracks=[
+                    TopTrack(id="1", position=1), TopTrack(id="2", position=2)
+                ],
+                time_range=TimeRange.SHORT
+            ),
+            TopTracksData(
+                top_tracks=[
+                    TopTrack(id="1", position=1), TopTrack(id="2", position=2)
+                ],
+                time_range=TimeRange.MEDIUM
+            ),
+            TopTracksData(
+                top_tracks=[
+                    TopTrack(id="1", position=1), TopTrack(id="2", position=2)
+                ],
+                time_range=TimeRange.LONG
+            )
+        ],
+        top_genres_data=[
+            TopGenresData(
+                top_genres=[
+                    TopGenre(name="genre1", count=3), TopGenre(name="genre2", count=1)
+                ],
+                time_range=TimeRange.SHORT
+            ),
+            TopGenresData(
+                top_genres=[
+                    TopGenre(name="genre1", count=3), TopGenre(name="genre2", count=1)
+                ],
+                time_range=TimeRange.MEDIUM
+            ),
+            TopGenresData(
+                top_genres=[
+                    TopGenre(name="genre1", count=3), TopGenre(name="genre2", count=1)
+                ],
+                time_range=TimeRange.LONG
+            )
+        ],
+        top_emotions_data=[
+            TopEmotionsData(
+                top_emotions=[
+                    TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)
+                ],
+                time_range=TimeRange.SHORT
+            ),
+            TopEmotionsData(
+                top_emotions=[
+                    TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)
+                ],
+                time_range=TimeRange.MEDIUM
+            ),
+            TopEmotionsData(
+                top_emotions=[
+                    TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)
+                ],
+                time_range=TimeRange.LONG
+            )
+        ]
+    )
+    assert user_spotify_data == expected_user_spotify_data
 
 # 5. Test lambda_handler calls db_service.update_refresh_token if refresh_token not None.
 
