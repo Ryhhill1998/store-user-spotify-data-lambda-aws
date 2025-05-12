@@ -7,7 +7,7 @@ from loguru import logger
 
 from src.db_service import DBService
 from src.models import UserSpotifyData, Settings, TopArtist, TopArtistsData, TopTracksData, TopTrack, \
-    TopGenresData, TopGenre, TopEmotion, TopEmotionsData
+    TopGenresData, TopGenre, TopEmotion, TopEmotionsData, TimeRange
 
 
 def get_settings() -> Settings:
@@ -35,28 +35,28 @@ def extract_user_spotify_data_from_event(event: dict) -> UserSpotifyData:
     
     top_artists_data = []
     for entry in top_artists_data_raw:
-        time_range = entry["time_range"]
+        time_range = TimeRange(entry["time_range"])
         top_artists_raw = entry["top_artists"]
         top_artists = [TopArtist(id=artist["id"], position=artist["position"]) for artist in top_artists_raw]
         top_artists_data.append(TopArtistsData(top_artists=top_artists, time_range=time_range))
 
     top_tracks_data = []
     for entry in top_tracks_data_raw:
-        time_range = entry["time_range"]
+        time_range = TimeRange(entry["time_range"])
         top_tracks_raw = entry["top_tracks"]
         top_tracks = [TopTrack(id=track["id"], position=track["position"]) for track in top_tracks_raw]
         top_tracks_data.append(TopTracksData(top_tracks=top_tracks, time_range=time_range))
 
     top_genres_data = []
     for entry in top_genres_data_raw:
-        time_range = entry["time_range"]
+        time_range = TimeRange(entry["time_range"])
         top_genres_raw = entry["top_genres"]
         top_genres = [TopGenre(name=genre["name"], count=genre["count"]) for genre in top_genres_raw]
         top_genres_data.append(TopGenresData(top_genres=top_genres, time_range=time_range))
 
     top_emotions_data = []
     for entry in top_emotions_data_raw:
-        time_range = entry["time_range"]
+        time_range = TimeRange(entry["time_range"])
         top_emotions_raw = entry["top_emotions"]
         top_emotions = [
             TopEmotion(
