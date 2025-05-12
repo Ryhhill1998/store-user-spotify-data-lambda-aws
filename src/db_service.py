@@ -70,7 +70,7 @@ class DBService:
             "collected_date, "
             "time_range, "
             "position"
-            ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
+            ") VALUES (%s, %s, %s, %s, %s);"
         )
 
         values = [(user_id, artist.id, collected_date, time_range.value, artist.position) for artist in top_artists]
@@ -91,7 +91,7 @@ class DBService:
             "collected_date, "
             "time_range, "
             "position"
-            ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
+            ") VALUES (%s, %s, %s, %s, %s);"
         )
 
         values = [(user_id, track.id, collected_date, time_range.value, track.position) for track in top_tracks]
@@ -112,7 +112,7 @@ class DBService:
             "collected_date, "
             "time_range, "
             "count"
-            ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
+            ") VALUES (%s, %s, %s, %s, %s);"
         )
 
         values = [(user_id, genre.name, collected_date, time_range.value, genre.count) for genre in top_genres]
@@ -133,7 +133,7 @@ class DBService:
             "collected_date, "
             "time_range, "
             "percentage"
-            ") VALUES (%s, %s, %s, %s, %s, %s, %s);"
+            ") VALUES (%s, %s, %s, %s, %s);"
         )
 
         values = [
