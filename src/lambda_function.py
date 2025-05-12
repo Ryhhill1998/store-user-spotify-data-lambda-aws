@@ -79,6 +79,7 @@ def extract_user_spotify_data_from_event(event: dict) -> UserSpotifyData:
 
 
 def lambda_handler(event, context):
+    logger.info(f"Event received: {event}")
     settings = get_settings()
 
     # 1. Extract user_id, refresh_token and spotify_data from event records
