@@ -1,15 +1,13 @@
 import json
 import os
-import sys
-import uuid
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime
 from unittest import mock
 from unittest.mock import Mock, call
 
 import pytest
-from loguru import logger
 
+from src.db_service import DBService
 from src.lambda_function import get_settings, extract_user_spotify_data_from_event, lambda_handler
 from src.models import Settings, UserSpotifyData, TimeRange, TopArtist, TopArtistsData, TopTracksData, TopTrack, \
     TopGenresData, TopGenre, TopEmotionsData, TopEmotion
@@ -199,13 +197,9 @@ def test_extract_user_spotify_data_from_event_raises_key_error_if_records_missin
     assert deleted_field in str(e.value)
 
 
-# 4. Test extract_user_spotify_data_from_event returns expected user spotify data.
-def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data(mock_event):
-    convert_body_to_json_string(mock_event)
-
-    user_spotify_data = extract_user_spotify_data_from_event(mock_event)
-
-    expected_user_spotify_data = UserSpotifyData(
+@pytest.fixture
+def mock_user_spotify_data() -> UserSpotifyData:
+    return UserSpotifyData(
         user_id="1",
         refresh_token="refresh",
         top_artists_data=[
@@ -289,15 +283,205 @@ def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data
             )
         ]
     )
+
+
+# 4. Test extract_user_spotify_data_from_event returns expected user spotify data.
+def test_extract_user_spotify_data_from_event_returns_expected_user_spotify_data(mock_event, mock_user_spotify_data):
+    convert_body_to_json_string(mock_event)
+
+    user_spotify_data = extract_user_spotify_data_from_event(mock_event)
+
+    expected_user_spotify_data = mock_user_spotify_data
     assert user_spotify_data == expected_user_spotify_data
 
+
+@pytest.fixture
+def mock_get_settings(mocker):
+    return mocker.patch(
+        "src.lambda_function.get_settings",
+        return_value=Settings(
+            db_host="",
+            db_name="",
+            db_user="",
+            db_pass=""
+        )
+    )
+
+
+@pytest.fixture
+def mock_extract_user_spotify_data_from_event(mocker, mock_user_spotify_data):
+    return mocker.patch("src.lambda_function.extract_user_spotify_data_from_event", return_value=mock_user_spotify_data)
+
+
+@pytest.fixture
+def mock_connection(mocker):
+    mock_conn = Mock()
+
+    mocker.patch("src.lambda_function.mysql.connector.connect", return_value=mock_conn)
+
+    return mock_conn
+
+
+@pytest.fixture
+def mock_db_service(mocker):
+    mock_dbs = Mock(spec=DBService)
+
+    mocker.patch("src.lambda_function.DBService", return_value=mock_dbs)
+
+    return mock_dbs
+
+
+@pytest.fixture
+def mock_datetime_now(mocker):
+    mock_dt = mocker.patch("src.lambda_function.datetime")
+    mock_dt.now.return_value = datetime(2025, 1, 1, 12, 0, 0)
+
+
 # 5. Test lambda_handler calls db_service.update_refresh_token if refresh_token not None.
+def test_lambda_handler_calls_db_service_update_refresh_token_if_refresh_token_not_none(
+        mock_get_settings,
+        mock_extract_user_spotify_data_from_event,
+        mock_connection,
+        mock_db_service,
+        mock_datetime_now
+):
+    lambda_handler({}, {})
+
+    mock_db_service.update_refresh_token.assert_called_once_with(user_id="1", refresh_token="refresh")
 
 
 # 6. Test lambda_handler does not call db_service.update_refresh_token if refresh_token is None.
+def test_lambda_handler_does_not_call_db_service_update_refresh_token_if_refresh_token_is_none(
+        mocker,
+        mock_get_settings,
+        mock_user_spotify_data,
+        mock_connection,
+        mock_db_service,
+        mock_datetime_now
+):
+    mock_user_spotify_data.refresh_token = None
+    mocker.patch("src.lambda_function.extract_user_spotify_data_from_event", return_value=mock_user_spotify_data)
+
+    lambda_handler({}, {})
+
+    mock_db_service.update_refresh_token.assert_not_called()
 
 
 # 7. Test lambda_handler calls expected methods with expected params.
+def test_lambda_handler_calls_expected_methods_with_expected_params(
+        mock_get_settings,
+        mock_extract_user_spotify_data_from_event,
+        mock_connection,
+        mock_db_service,
+        mock_datetime_now
+):
+    lambda_handler({}, {})
+
+    mock_get_settings.assert_called_once()
+    mock_extract_user_spotify_data_from_event.assert_called_once_with({})
+    collected_date = datetime(2025, 1, 1, 12, 0, 0)
+    expected_store_top_artists_calls = [
+        call(
+            user_id="1",
+            top_artists=[TopArtist(id="1", position=1), TopArtist(id="2", position=2)],
+            time_range=TimeRange.SHORT,
+            collected_date=collected_date
+        ),
+        call(
+            user_id="1",
+            top_artists=[TopArtist(id="1", position=1), TopArtist(id="2", position=2)],
+            time_range=TimeRange.MEDIUM,
+            collected_date=collected_date
+        ),
+        call(
+            user_id="1",
+            top_artists=[TopArtist(id="1", position=1), TopArtist(id="2", position=2)],
+            time_range=TimeRange.LONG,
+            collected_date=collected_date
+        )
+    ]
+    mock_db_service.store_top_artists.assert_has_calls(expected_store_top_artists_calls, any_order=False)
+    assert mock_db_service.store_top_artists.call_count == 3
+    expected_store_top_tracks_calls = [
+        call(
+            user_id="1",
+            top_tracks=[TopTrack(id="1", position=1), TopTrack(id="2", position=2)],
+            time_range=TimeRange.SHORT,
+            collected_date=collected_date
+        ),
+        call(
+            user_id="1",
+            top_tracks=[TopTrack(id="1", position=1), TopTrack(id="2", position=2)],
+            time_range=TimeRange.MEDIUM,
+            collected_date=collected_date
+        ),
+        call(
+            user_id="1",
+            top_tracks=[TopTrack(id="1", position=1), TopTrack(id="2", position=2)],
+            time_range=TimeRange.LONG,
+            collected_date=collected_date
+        )
+    ]
+    mock_db_service.store_top_tracks.assert_has_calls(expected_store_top_tracks_calls, any_order=False)
+    assert mock_db_service.store_top_tracks.call_count == 3
+    expected_store_top_genres_calls = [
+        call(
+            user_id="1",
+            top_genres=[TopGenre(name="genre1", count=3), TopGenre(name="genre2", count=1)],
+            time_range=TimeRange.SHORT,
+            collected_date=collected_date
+        ),
+        call(
+            user_id="1",
+            top_genres=[TopGenre(name="genre1", count=3), TopGenre(name="genre2", count=1)],
+            time_range=TimeRange.MEDIUM,
+            collected_date=collected_date
+        ),
+        call(
+            user_id="1",
+            top_genres=[TopGenre(name="genre1", count=3), TopGenre(name="genre2", count=1)],
+            time_range=TimeRange.LONG,
+            collected_date=collected_date
+        )
+    ]
+    mock_db_service.store_top_genres.assert_has_calls(expected_store_top_genres_calls, any_order=False)
+    assert mock_db_service.store_top_genres.call_count == 3
+    expected_store_top_emotions_calls = [
+        call(
+            user_id="1",
+            top_emotions=[TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)],
+            time_range=TimeRange.SHORT,
+            collected_date=collected_date
+        ),
+        call(
+            user_id="1",
+            top_emotions=[TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)],
+            time_range=TimeRange.MEDIUM,
+            collected_date=collected_date
+        ),
+        call(
+            user_id="1",
+            top_emotions=[TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)],
+            time_range=TimeRange.LONG,
+            collected_date=collected_date
+        )
+    ]
+    mock_db_service.store_top_emotions.assert_has_calls(expected_store_top_emotions_calls, any_order=False)
+    assert mock_db_service.store_top_emotions.call_count == 3
+    mock_connection.close.assert_called_once()
 
 
 # 8. Test lambda_handler closes db connection if Exception occurs.
+def test_lambda_handler_closes_db_connection_if_exception_occurs(
+        mock_get_settings,
+        mock_extract_user_spotify_data_from_event,
+        mock_connection,
+        mock_db_service,
+        mock_datetime_now
+):
+    mock_db_service.store_top_artists.side_effect = Exception("Test")
+
+    with pytest.raises(Exception):
+        lambda_handler({}, {})
+
+    mock_connection.close.assert_called_once()
