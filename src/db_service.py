@@ -130,16 +130,18 @@ class DBService:
             "INSERT INTO top_emotion ("
             "spotify_user_id, "
             "emotion_name, "
+            "track_id, "
             "collected_date, "
             "time_range, "
             "percentage"
-            ") VALUES (%s, %s, %s, %s, %s);"
+            ") VALUES (%s, %s, %s, %s, %s, %s);"
         )
 
         values = [
             (
                 user_id,
                 emotion.name,
+                emotion.track_id,
                 collected_date,
                 time_range.value,
                 emotion.percentage

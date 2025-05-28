@@ -61,7 +61,8 @@ def extract_user_spotify_data_from_event(event: dict) -> UserSpotifyData:
         top_emotions = [
             TopEmotion(
                 name=emotion["name"],
-                percentage=emotion["percentage"]
+                percentage=emotion["percentage"],
+                track_id=emotion["track_id"]
             )
             for emotion in top_emotions_raw
         ]

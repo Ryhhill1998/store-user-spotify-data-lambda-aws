@@ -38,6 +38,7 @@ class TopGenre:
 class TopEmotion:
     name: str
     percentage: float
+    track_id: str
 
 
 @dataclass

@@ -83,7 +83,7 @@ def test_store_top_artists_calls__store_top_items_with_expected_params(db_servic
         collected_date=collected_date
     )
 
-    expected_insert_statement = "INSERT INTO top_artist (spotify_user_id, artist_id, collected_date, time_range, position) VALUES (%s, %s, %s, %s, %s, %s, %s);"
+    expected_insert_statement = "INSERT INTO top_artist (spotify_user_id, artist_id, collected_date, time_range, position) VALUES (%s, %s, %s, %s, %s);"
     expected_values = [
         ("1", "1", collected_date, "short_term", 1),
         ("1", "2", collected_date, "short_term", 2)
@@ -108,7 +108,7 @@ def test_store_top_tracks_calls__store_top_items_with_expected_params(db_service
         collected_date=collected_date
     )
 
-    expected_insert_statement = "INSERT INTO top_track (spotify_user_id, track_id, collected_date, time_range, position) VALUES (%s, %s, %s, %s, %s, %s, %s);"
+    expected_insert_statement = "INSERT INTO top_track (spotify_user_id, track_id, collected_date, time_range, position) VALUES (%s, %s, %s, %s, %s);"
     expected_values = [
         ("1", "1", collected_date, "short_term", 1),
         ("1", "2", collected_date, "short_term", 2)
@@ -133,7 +133,7 @@ def test_store_top_genres_calls__store_top_items_with_expected_params(db_service
         collected_date=collected_date
     )
 
-    expected_insert_statement = "INSERT INTO top_genre (spotify_user_id, genre_name, collected_date, time_range, count) VALUES (%s, %s, %s, %s, %s, %s, %s);"
+    expected_insert_statement = "INSERT INTO top_genre (spotify_user_id, genre_name, collected_date, time_range, count) VALUES (%s, %s, %s, %s, %s);"
     expected_values = [
         ("1", "genre1", collected_date, "short_term", 3),
         ("1", "genre2", collected_date, "short_term", 1)
@@ -153,15 +153,26 @@ def test_store_top_emotions_calls__store_top_items_with_expected_params(db_servi
 
     db_service.store_top_emotions(
         user_id="1",
-        top_emotions=[TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)],
+        top_emotions=[
+            TopEmotion(
+                name="emotion1",
+                percentage=0.3,
+                track_id="1"
+            ),
+            TopEmotion(
+                name="emotion2",
+                percentage=0.1,
+                track_id="2"
+            )
+        ],
         time_range=TimeRange.SHORT,
         collected_date=collected_date
     )
 
-    expected_insert_statement = "INSERT INTO top_emotion (spotify_user_id, emotion_name, collected_date, time_range, percentage) VALUES (%s, %s, %s, %s, %s, %s, %s);"
+    expected_insert_statement = "INSERT INTO top_emotion (spotify_user_id, emotion_name, track_id, collected_date, time_range, percentage) VALUES (%s, %s, %s, %s, %s, %s);"
     expected_values = [
-        ("1", "emotion1", collected_date, "short_term", 0.3),
-        ("1", "emotion2", collected_date, "short_term", 0.1)
+        ("1", "emotion1", "1", collected_date, "short_term", 0.3),
+        ("1", "emotion2", "2", collected_date, "short_term", 0.1)
     ]
     mock__store_top_items.assert_called_once_with(
         item_type=ItemType.EMOTIONS,

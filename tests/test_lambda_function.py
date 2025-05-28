@@ -139,22 +139,22 @@ def mock_event():
                     "top_emotions_data": [
                         {
                             "top_emotions": [
-                                {"name": "emotion1", "percentage": 0.3},
-                                {"name": "emotion2", "percentage": 0.1}
+                                {"name": "emotion1", "percentage": 0.3, "track_id": "1"},
+                                {"name": "emotion2", "percentage": 0.1, "track_id": "2"}
                             ],
                             "time_range": "short_term"
                         },
                         {
                             "top_emotions": [
-                                {"name": "emotion1", "percentage": 0.3},
-                                {"name": "emotion2", "percentage": 0.1}
+                                {"name": "emotion1", "percentage": 0.3, "track_id": "1"},
+                                {"name": "emotion2", "percentage": 0.1, "track_id": "2"}
                             ],
                             "time_range": "medium_term"
                         },
                         {
                             "top_emotions": [
-                                {"name": "emotion1", "percentage": 0.3},
-                                {"name": "emotion2", "percentage": 0.1}
+                                {"name": "emotion1", "percentage": 0.3, "track_id": "1"},
+                                {"name": "emotion2", "percentage": 0.1, "track_id": "2"}
                             ],
                             "time_range": "long_term"
                         }
@@ -265,19 +265,46 @@ def mock_user_spotify_data() -> UserSpotifyData:
         top_emotions_data=[
             TopEmotionsData(
                 top_emotions=[
-                    TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)
+                    TopEmotion(
+                        name="emotion1",
+                        percentage=0.3,
+                        track_id="1"
+                    ),
+                    TopEmotion(
+                        name="emotion2",
+                        percentage=0.1,
+                        track_id="2"
+                    )
                 ],
                 time_range=TimeRange.SHORT
             ),
             TopEmotionsData(
                 top_emotions=[
-                    TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)
+                    TopEmotion(
+                        name="emotion1",
+                        percentage=0.3,
+                        track_id="1"
+                    ),
+                    TopEmotion(
+                        name="emotion2",
+                        percentage=0.1,
+                        track_id="2"
+                    )
                 ],
                 time_range=TimeRange.MEDIUM
             ),
             TopEmotionsData(
                 top_emotions=[
-                    TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)
+                    TopEmotion(
+                        name="emotion1",
+                        percentage=0.3,
+                        track_id="1"
+                    ),
+                    TopEmotion(
+                        name="emotion2",
+                        percentage=0.1,
+                        track_id="2"
+                    )
                 ],
                 time_range=TimeRange.LONG
             )
@@ -449,19 +476,52 @@ def test_lambda_handler_calls_expected_methods_with_expected_params(
     expected_store_top_emotions_calls = [
         call(
             user_id="1",
-            top_emotions=[TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)],
+            top_emotions=[
+                TopEmotion(
+                    name="emotion1",
+                    percentage=0.3,
+                    track_id="1"
+                ),
+                TopEmotion(
+                    name="emotion2",
+                    percentage=0.1,
+                    track_id="2"
+                )
+            ],
             time_range=TimeRange.SHORT,
             collected_date=collected_date
         ),
         call(
             user_id="1",
-            top_emotions=[TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)],
+            top_emotions=[
+                TopEmotion(
+                    name="emotion1",
+                    percentage=0.3,
+                    track_id="1"
+                ),
+                TopEmotion(
+                    name="emotion2",
+                    percentage=0.1,
+                    track_id="2"
+                )
+            ],
             time_range=TimeRange.MEDIUM,
             collected_date=collected_date
         ),
         call(
             user_id="1",
-            top_emotions=[TopEmotion(name="emotion1", percentage=0.3), TopEmotion(name="emotion2", percentage=0.1)],
+            top_emotions=[
+                TopEmotion(
+                    name="emotion1",
+                    percentage=0.3,
+                    track_id="1"
+                ),
+                TopEmotion(
+                    name="emotion2",
+                    percentage=0.1,
+                    track_id="2"
+                )
+            ],
             time_range=TimeRange.LONG,
             collected_date=collected_date
         )
